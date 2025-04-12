@@ -178,16 +178,16 @@ Maps.Y = Maps.Y*saf;
 Maps.units.St = 'Pa';        Maps.units.xy = 'm';
 
 %% for plotting
-if Maps.stepsize > 1
+if Maps.stepsize > 0.1
     Maps.units.xy = 'm';
     saf = 1;
-elseif Maps.stepsize > 1e-3
+elseif Maps.stepsize > 1e-4
     Maps.units.xy = 'mm';
     saf = 1e-3;
-elseif Maps.stepsize > 1e-6
+elseif Maps.stepsize > 1e-7
     Maps.units.xy = 'um';
     saf = 1e-6;
-elseif Maps.stepsize > 1e-9
+elseif Maps.stepsize > 1e-10
     Maps.units.xy = 'nm';
     saf = 1e-9;
 end
