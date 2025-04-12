@@ -25,7 +25,7 @@ close all;
 % 9 columns the first three columns are the x, y and z coordinate in meters. z
 % cooridnate can be a zero column. the 4th to the 9th column are the strain
 % components arranged as
-% Maps = [X(:) Y(:) Z(:) E11(:) E12(:) E13(:) E21(:) E22(:) E23(:) E31(:) E32(:) E33(:)];
+% Maps = [X(:) Y(:) Z(:) Fe11(:) Fe12(:) Fe13(:) Fe21(:) Fe2(:) Fe23(:) Fe31(:) Fe32(:) Fe33(:)];
 % or A for deformation gradient tensor
 
 % if the map is a 2D defromation gradient map then zero all out of the plane components
