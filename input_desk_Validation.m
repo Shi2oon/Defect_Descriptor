@@ -2,10 +2,10 @@
 clc;clear;close all
 addpath([pwd '\functions'])
 [Prop,M4,alldata] = Calibration_2DKIII(3,1,2);
-
+Prop.Operation = 'U'; % for defromation gradient
 [K,KI,KII,KIII,J,M,Maps] = M_J_KIII_2D(alldata,Prop);
-% Prop.Operation = 'DIC';
-% [K,KI,KII,KIII,J,M,Maps] = M_J_KIII_2D(M4.data,Prop);% as desigignated maps
+Prop.Operation = 'DIC'; %for DIC data
+[K,KI,KII,KIII,J,M,Maps] = M_J_KIII_2D(M4.data,Prop);% as desigignated maps
 
 %% M integral verfication after rotation (KI-III values will change)
     theta = J.direction_true;  % Get the current crack angle

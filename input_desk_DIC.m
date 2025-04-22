@@ -8,7 +8,9 @@ Prop.nu = 0.3;     % Poisson ratio
 Prop.units.St = 'Pa';  
 Prop.units.xy = 'mm';% meter (m) or milmeter (mm) or micrometer(um);
 Prop.stressstat = 'plane_stress';% 'plane_stress' OR 'plane_strain'
-Prop.Operation = 'DIC'; % 'DIC' for raw 2D and 3D DIC data
+Prop.Operation = 'DIC'; % 'DIC' for raw 2D and 3D DIC data, 
+%                       % 'F' for deformation gradient and 'U' for
+%                       displacement gradient
 DataDirect = fullfile(pwd,'Data','1KI-2KII-3KII_Data.dat'); % file locatio
 % Prop.SavingD = fullfile(pwd,'Data'); % for saving figures and data
 
@@ -30,10 +32,10 @@ Prop.units.St = 'Pa';
 Prop.units.xy = 'm';% meter (m) or milmeter (mm) or micrometer(um);
 Prop.stressstat = 'plane_stress';% 'plane_stress' OR 'plane_strain'
 Prop.Operation = 'DIC'; % 'DIC' for raw 2D and 3D DIC data
-DataDirect = fullfile(pwd,'Data','3660Jm.dat'); % file locatio
+DataDirect = fullfile(pwd,'Data','3160Jm.dat'); % file locatio
 % Prop.SavingD = fullfile(pwd,'Data');
 
-% end of user input
+% end of user input, cut the contour at 22
 Data = importdata(DataDirect);
 [K,KI,KII,KIII,J,M,Maps] = M_J_KIII_2D(Data.data,Prop);
 

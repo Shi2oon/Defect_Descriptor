@@ -4,7 +4,7 @@ function [Maps,alldata]=GetGrainData(fname,Named)
 if exist('Named','var') == 0
     [~,Named] = fileparts(fname);
 end
-Answers = input('Do you want to use a specific grain (S) or the whole map (W), or TKD? ','s');
+Answers = input('Do you want to use a specific grain (S) or the whole map (W), TKD or CrossCourt? ','s');
 if strcmpi(Answers, 'S')
     set(0,'DefaultLineMarkerSize',10)
     if ~exist([erase(fname,'.mat') '.mat'],'file')
@@ -96,6 +96,9 @@ elseif strcmpi(Answers, 'W') || strcmpi(Answers, 'D')
 elseif strcmpi(Answers, 'TKD')
     [Maps] = loadingTKD(fname);
     SavingD = fullfile(fileparts(fname),[Named '_TKD']);  mkdir(SavingD);
+elseif strcmpi(Answers, 'CrossCourt') || strcmpi(Answers, 'X')
+    [Maps] = loadingCrossCourt(fname);
+    SavingD = fullfile(fileparts(fname),[Named '_CrossCourt']);  mkdir(SavingD);
 end
 
 %% Plot selected
@@ -140,6 +143,7 @@ if length(unique(Maps.RefID))>3;   answer = 1;
 end
 %}
 %% crack coordinates
+%{
 % try;    Maps = isNaN_Maps(Maps);       end % trim GB
 close all;
 imagesc(Maps.X(1,:),Maps.Y(:,1),Maps.E12);
@@ -155,7 +159,7 @@ title('E_{12} :: Select the Crack, start from crack tip');
 [Maps.xo,Maps.yo] = ginput(2);
 title('E_{12} :: Select the Crack mask, start from crack tip');
 [Maps.xm,Maps.ym] = ginput(2); close
-
+%}
 %% Get stiffness tensor
 Maps.SavingD = SavingD;
 if strcmpi(Answers, 'w')
@@ -206,4 +210,5 @@ elseif strcmpi(Named, '2D')
 end
 
 save(SavingD,'Maps','alldata'); % save
+Maps.SavingD = fileparts(Maps.SavingD);
 end

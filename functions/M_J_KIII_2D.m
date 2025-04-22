@@ -1,6 +1,6 @@
 function [K,KI,KII,KIII,J,M,Maps] = M_J_KIII_2D(alldata,MatProp,loopedJ)
 close all;
-
+warning off
 % This code decompose the Stress intesity factors from strain maps
 % directly without the need for integration
 % Start with generating strain data using the calibration code and
@@ -52,7 +52,14 @@ if isfield(MatProp,'Operation')
 
         if size(alldata,2)==6
             [RawData.E31,RawData.E32,RawData.E33] = crackgradient(RawData.Uz,stepsize);
-
+            
+            %{
+            % if you want to validte the code for deformation gradient
+            RawData.E11 = RawData.E11+1;
+            RawData.E22 = RawData.E22+1;
+            RawData.E33 = RawData.E33+1;
+            MatProp.Operation= 'F';
+            %}
             alldata = [RawData.X1(:) RawData.Y1(:) zeros(size(RawData.Y1(:))) ...
                 RawData.E11(:) RawData.E12(:) RawData.E13(:) ...
                 RawData.E21(:) RawData.E22(:) RawData.E23(:) ...
@@ -71,6 +78,8 @@ if isfield(MatProp,'Operation')
             saveas(gcf, [fileparts(MatProp.SavingD) '\u.tif']);  close
         end
         end
+        MatProp.Operation =  'U'; %displcement gradient
+        
     end
 end
 
@@ -100,6 +109,7 @@ else
     Maps.stressstat = MatProp.stressstat;
     Maps.units.xy = MatProp.units.xy;
     Maps.units.St = MatProp.units.St;
+    Maps.Operation = MatProp.Operation;
     if isfield(MatProp,'SavingD')
         Maps.SavingD = MatProp.SavingD;
     end
@@ -116,7 +126,11 @@ if ~exist('loopedJ','var')
     quest            = 'Do you want to Crop and Centre the Crack tip';
     answer           = questdlg(quest,'Boundary Condition','Y','N', opts);
     if strcmpi(answer,'Y') % crop data
-        [Crop] = CroppingEqually(Maps);
+        try
+            [Crop] = CroppingEqually(Maps);
+        catch
+            Crop = Maps;
+        end
         Crop = center_Crack_tip(Crop);
         Maps.X    = Crop.X;      Maps.Y   = Crop.Y;        Maps.Z   = Crop.Z;
         Maps.du11 = Crop.du11;  Maps.du12 = Crop.du12;    Maps.du13 = Crop.du13;
@@ -169,7 +183,7 @@ switch Maps.units.xy
     case 'um'
         saf = 1e-6;
     case 'nm'
-        saf = 1e-9;
+        saf = 1e-8;
 end
 
 Maps.stepsize = mean(unique(round(diff(unique(Maps.Y(:))),4)),'omitnan')*saf;
@@ -178,20 +192,21 @@ Maps.Y = Maps.Y*saf;
 Maps.units.St = 'Pa';        Maps.units.xy = 'm';
 
 %% for plotting
-if Maps.stepsize > 0.1
+DataSize = [size(Maps.du11),1];
+if Maps.stepsize*max(DataSize) > 10
     Maps.units.xy = 'm';
     saf = 1;
-elseif Maps.stepsize > 1e-4
+elseif Maps.stepsize*max(DataSize) > 1e-2
     Maps.units.xy = 'mm';
     saf = 1e-3;
-elseif Maps.stepsize > 1e-7
+elseif Maps.stepsize*max(DataSize) > 1e-5
     Maps.units.xy = 'um';
     saf = 1e-6;
-elseif Maps.stepsize > 1e-10
+elseif Maps.stepsize*max(DataSize) > 1e-8
     Maps.units.xy = 'nm';
     saf = 1e-9;
 end
-DataSize = [size(Maps.du11),1];
+
 
 %% Decomposition method.
 [du_dx,E,S] = decomposeDU(Maps);
@@ -234,7 +249,7 @@ end
 % displacement field measurement, FFEMS (2012), 35, ?971-984
 % Displacement gradient
 % Generate q field
-celw = 1;  % Width of area contour. Has to be an odd number.
+celw = 1;  % Width of area Domain. Has to be an odd number.
 dQdX = ones(DataSize)/(Maps.stepsize*celw);
 dQdX = flipud(tril(flipud(tril(dQdX))))-flipud(triu(flipud(triu(dQdX))));
 dQdY = dQdX';
@@ -252,7 +267,7 @@ for jj = 1:2
 end
 JAd = sum(JAdr,4,'omitnan');
 %}
-% Contour selection
+% Domain selection
 mid = floor(DataSize(1)/2);
 [a,b] = meshgrid(1:DataSize(1));
 linecon=round(max((abs(a-mid-1/2)),abs(b-mid-1/2)));
@@ -280,7 +295,7 @@ else
     text(1:length(J.Raw),J.Raw,string([1:length(J.Raw)]))
     pause(0.1)
     %}
-    oh = input('where to cut the contour? '); close
+    oh = input('where to cut the Domain? '); close
 end
 
 %%
@@ -291,14 +306,14 @@ KII.Raw  = J.KRaw(2,:)*1e-6;
 KIII.Raw = J.KRaw(3,:)*1e-6;
 
 %%
-contrs   = length(J.Raw);        contrs = contrs - round(contrs*0.4);
-dic = real(ceil(-log10(nanmean(rmoutliers(J.Raw(contrs:end))))))+2;
+contrs   = length(J.Raw);        contrs = contrs - round(contrs*0.3);
+dic = real(ceil(-log10(nanmean(rmoutliers(abs(J.Raw(contrs:end)))))))+2;
 if dic<2;       dic = 2;    end
 J.true   = round(mean(J.Raw(contrs:end)),dic);
 J.div    = round(std(J.Raw(contrs:end),1),dic);
 
 K.Raw    = signed_sqrt(J.Raw*Maps.E)*1e-6;
-dic = real(ceil(-log10(nanmean(rmoutliers(K.Raw(contrs:end))))))+2;
+dic = real(ceil(-log10(nanmean(rmoutliers(abs(K.Raw(contrs:end)))))))+2;
 if dic<2;       dic = 2;    end
 K.true   = round(mean(K.Raw(contrs:end)),dic);
 K.div    = round(std(K.Raw(contrs:end),1),dic);
@@ -357,7 +372,7 @@ end
 % to avoid imaginary number (needs to be solved so the code could work for
 % compressive fields
 J.vectorial = J.vectorial(:,1:oh);
-dic = real(ceil(-log10(nanmean(rmoutliers(J.vectorial(contrs:end))))))+2;
+dic = real(ceil(-log10(nanmean(rmoutliers(abs(J.vectorial(contrs:end)))))))+2;
 if dic<2;       dic = 2;    end
 J.vectorial_true   = round(mean(J.vectorial(:,contrs:end),2),dic);
 J.vectorial_div    = round(std(J.vectorial(:,contrs:end),1,2),dic);
@@ -369,14 +384,14 @@ J.maxJ_true   = round(mean(J.maxJ(:,contrs:end),2),dic);
 J.maxJ_div    = round(std(J.maxJ(:,contrs:end),1,2),dic);
 
 K.Eff_Raw = signed_sqrt(J.vectorial(1,:)*Maps.E)*1e-6;
-dic = real(ceil(-log10(nanmean(rmoutliers(K.Raw(contrs:end))))))+2;
+dic = real(ceil(-log10(nanmean(rmoutliers(abs(K.Raw(contrs:end)))))))+2;
 if dic<2;       dic = 2;    end
 K.Eff_true = round(mean(K.Eff_Raw(contrs:end),2),dic);
 K.Eff_div = round(std(K.Eff_Raw(contrs:end),1,2),dic);
 
-dic = real(ceil(-log10(nanmean(rmoutliers(M.Raw(contrs:end))))))+2;
-if dic<2;       dic = 2;    end
 M.Raw = M.Raw(:,1:oh);
+dic = real(ceil(-log10(nanmean(rmoutliers(abs(M.Raw(contrs:end)))))))+2;
+if dic<2;       dic = 2;    end
 M.true  = round(mean(M.Raw(:,contrs:end),2),dic);
 M.div   = round(std(M.Raw(:,contrs:end),1,2),dic);
 
@@ -446,52 +461,93 @@ end
 
 
 %% sub-functions
-function [du_dx,De_E,De_S] = decomposeDU(Maps)
+function [du_dx,De_E,De_S] = decomposeDU(Maps) % decoupling of mode I-III
 for iV=1:3
     for xi=1:3
         eval(sprintf('A(:,:,iV,xi) = Maps.du%d%d;',iV,xi));
     end
 end
-
 %% decompostion
-% Mode I
-du_dx(:,:,1,1,1) = 0.5*(squeeze(A(:,:,1,1)) + flipud(squeeze(A(:,:,1,1))));
-du_dx(:,:,1,2,1) = 0.5*(squeeze(A(:,:,1,2)) - flipud(squeeze(A(:,:,1,2))));
-du_dx(:,:,1,3,1) = 0.5*(squeeze(A(:,:,1,3)) + flipud(squeeze(A(:,:,1,3))));
+if strcmpi(Maps.Operation, 'U') || strcmpi(Maps.Operation, 'xED') % displacment gradident
+    % Mode I
+    du_dx(:,:,1,1,1) = 0.5*(squeeze(A(:,:,1,1)) + flipud(squeeze(A(:,:,1,1))));
+    du_dx(:,:,1,2,1) = 0.5*(squeeze(A(:,:,1,2)) - flipud(squeeze(A(:,:,1,2))));
+    du_dx(:,:,1,3,1) = 0.5*(squeeze(A(:,:,1,3)) + flipud(squeeze(A(:,:,1,3))));
 
-du_dx(:,:,2,1,1) = 0.5*(squeeze(A(:,:,2,1)) - flipud(squeeze(A(:,:,2,1))));
-du_dx(:,:,2,2,1) = 0.5*(squeeze(A(:,:,2,2)) + flipud(squeeze(A(:,:,2,2))));
-du_dx(:,:,2,3,1) = 0.5*(squeeze(A(:,:,2,3)) - flipud(squeeze(A(:,:,2,3))));
+    du_dx(:,:,2,1,1) = 0.5*(squeeze(A(:,:,2,1)) - flipud(squeeze(A(:,:,2,1))));
+    du_dx(:,:,2,2,1) = 0.5*(squeeze(A(:,:,2,2)) + flipud(squeeze(A(:,:,2,2))));
+    du_dx(:,:,2,3,1) = 0.5*(squeeze(A(:,:,2,3)) - flipud(squeeze(A(:,:,2,3))));
 
-du_dx(:,:,3,1,1) = 0.5*(squeeze(A(:,:,3,1)) + flipud(squeeze(A(:,:,3,1))));
-du_dx(:,:,3,2,1) = 0.5*(squeeze(A(:,:,3,2)) - flipud(squeeze(A(:,:,3,2))));
-du_dx(:,:,3,3,1) = 0.5*(squeeze(A(:,:,3,3)) + flipud(squeeze(A(:,:,3,3))));
+    du_dx(:,:,3,1,1) = 0.5*(squeeze(A(:,:,3,1)) + flipud(squeeze(A(:,:,3,1))));
+    du_dx(:,:,3,2,1) = 0.5*(squeeze(A(:,:,3,2)) - flipud(squeeze(A(:,:,3,2))));
+    du_dx(:,:,3,3,1) = 0.5*(squeeze(A(:,:,3,3)) + flipud(squeeze(A(:,:,3,3))));
 
-% Mode II
-du_dx(:,:,1,1,2) = 0.5*(squeeze(A(:,:,1,1)) - flipud(squeeze(A(:,:,1,1))));
-du_dx(:,:,1,2,2) = 0.5*(squeeze(A(:,:,1,2)) + flipud(squeeze(A(:,:,1,2))));
-du_dx(:,:,1,3,2) = zeros(size(squeeze(A(:,:,1,1))));
+    % Mode II
+    du_dx(:,:,1,1,2) = 0.5*(squeeze(A(:,:,1,1)) - flipud(squeeze(A(:,:,1,1))));
+    du_dx(:,:,1,2,2) = 0.5*(squeeze(A(:,:,1,2)) + flipud(squeeze(A(:,:,1,2))));
+    du_dx(:,:,1,3,2) = zeros(size(squeeze(A(:,:,1,1))));
 
-du_dx(:,:,2,1,2) = 0.5*(squeeze(A(:,:,2,1)) + flipud(squeeze(A(:,:,2,1))));
-du_dx(:,:,2,2,2) = 0.5*(squeeze(A(:,:,2,2)) - flipud(squeeze(A(:,:,2,2))));
-du_dx(:,:,2,3,2) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,2,1,2) = 0.5*(squeeze(A(:,:,2,1)) + flipud(squeeze(A(:,:,2,1))));
+    du_dx(:,:,2,2,2) = 0.5*(squeeze(A(:,:,2,2)) - flipud(squeeze(A(:,:,2,2))));
+    du_dx(:,:,2,3,2) = zeros(size(squeeze(A(:,:,1,1))));
 
-du_dx(:,:,3,1,2) = zeros(size(squeeze(A(:,:,1,1))));
-du_dx(:,:,3,2,2) = zeros(size(squeeze(A(:,:,1,1))));
-du_dx(:,:,3,3,2) = 0.5*(squeeze(A(:,:,3,3)) - flipud(squeeze(A(:,:,3,3))));
+    du_dx(:,:,3,1,2) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,3,2,2) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,3,3,2) = 0.5*(squeeze(A(:,:,3,3)) - flipud(squeeze(A(:,:,3,3))));
 
-% Mode III
-du_dx(:,:,1,1,3) = zeros(size(squeeze(A(:,:,1,1))));
-du_dx(:,:,1,2,3) = zeros(size(squeeze(A(:,:,1,1))));
-du_dx(:,:,1,3,3) = 0.5*(squeeze(A(:,:,1,3)) - flipud(squeeze(A(:,:,1,3))));
+    % Mode III
+    du_dx(:,:,1,1,3) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,1,2,3) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,1,3,3) = 0.5*(squeeze(A(:,:,1,3)) - flipud(squeeze(A(:,:,1,3))));
 
-du_dx(:,:,2,1,3) = zeros(size(squeeze(A(:,:,1,1))));
-du_dx(:,:,2,2,3) = zeros(size(squeeze(A(:,:,1,1))));
-du_dx(:,:,2,3,3) = 0.5*(squeeze(A(:,:,2,3)) + flipud(squeeze(A(:,:,2,3))));
+    du_dx(:,:,2,1,3) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,2,2,3) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,2,3,3) = 0.5*(squeeze(A(:,:,2,3)) + flipud(squeeze(A(:,:,2,3))));
 
-du_dx(:,:,3,1,3) = 0.5*(squeeze(A(:,:,3,1)) - flipud(squeeze(A(:,:,3,1))));
-du_dx(:,:,3,2,3) = 0.5*(squeeze(A(:,:,3,2)) + flipud(squeeze(A(:,:,3,2))));
-du_dx(:,:,3,3,3) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,3,1,3) = 0.5*(squeeze(A(:,:,3,1)) - flipud(squeeze(A(:,:,3,1))));
+    du_dx(:,:,3,2,3) = 0.5*(squeeze(A(:,:,3,2)) + flipud(squeeze(A(:,:,3,2))));
+    du_dx(:,:,3,3,3) = zeros(size(squeeze(A(:,:,1,1))));
+
+elseif strcmpi(Maps.Operation, 'F') % deformation gradient
+    % Mode I
+    du_dx(:,:,1,1,1) = 0.5*(squeeze(A(:,:,1,1)) + flipud(squeeze(A(:,:,1,1)))-2);
+    du_dx(:,:,1,2,1) = 0.5*(squeeze(A(:,:,1,2)) - flipud(squeeze(A(:,:,1,2))));
+    du_dx(:,:,1,3,1) = 0.5*(squeeze(A(:,:,1,3)) + flipud(squeeze(A(:,:,1,3))));
+
+    du_dx(:,:,2,1,1) = 0.5*(squeeze(A(:,:,2,1)) - flipud(squeeze(A(:,:,2,1))));
+    du_dx(:,:,2,2,1) = 0.5*(squeeze(A(:,:,2,2)) + flipud(squeeze(A(:,:,2,2)))-2);
+    du_dx(:,:,2,3,1) = 0.5*(squeeze(A(:,:,2,3)) - flipud(squeeze(A(:,:,2,3))));
+
+    du_dx(:,:,3,1,1) = 0.5*(squeeze(A(:,:,3,1)) + flipud(squeeze(A(:,:,3,1))));
+    du_dx(:,:,3,2,1) = 0.5*(squeeze(A(:,:,3,2)) - flipud(squeeze(A(:,:,3,2))));
+    du_dx(:,:,3,3,1) = 0.5*(squeeze(A(:,:,3,3)) + flipud(squeeze(A(:,:,3,3)))-2);
+
+    % Mode II
+    du_dx(:,:,1,1,2) = 0.5*(squeeze(A(:,:,1,1)) - flipud(squeeze(A(:,:,1,1))));
+    du_dx(:,:,1,2,2) = 0.5*(squeeze(A(:,:,1,2)) + flipud(squeeze(A(:,:,1,2))));
+    du_dx(:,:,1,3,2) = zeros(size(squeeze(A(:,:,1,1))));
+
+    du_dx(:,:,2,1,2) = 0.5*(squeeze(A(:,:,2,1)) + flipud(squeeze(A(:,:,2,1))));
+    du_dx(:,:,2,2,2) = 0.5*(squeeze(A(:,:,2,2)) - flipud(squeeze(A(:,:,2,2))));
+    du_dx(:,:,2,3,2) = zeros(size(squeeze(A(:,:,1,1))));
+
+    du_dx(:,:,3,1,2) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,3,2,2) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,3,3,2) = 0.5*(squeeze(A(:,:,3,3)) - flipud(squeeze(A(:,:,3,3))));
+
+    % Mode III
+    du_dx(:,:,1,1,3) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,1,2,3) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,1,3,3) = 0.5*(squeeze(A(:,:,1,3)) - flipud(squeeze(A(:,:,1,3))));
+
+    du_dx(:,:,2,1,3) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,2,2,3) = zeros(size(squeeze(A(:,:,1,1))));
+    du_dx(:,:,2,3,3) = 0.5*(squeeze(A(:,:,2,3)) + flipud(squeeze(A(:,:,2,3))));
+
+    du_dx(:,:,3,1,3) = 0.5*(squeeze(A(:,:,3,1)) - flipud(squeeze(A(:,:,3,1))));
+    du_dx(:,:,3,2,3) = 0.5*(squeeze(A(:,:,3,2)) + flipud(squeeze(A(:,:,3,2))));
+    du_dx(:,:,3,3,3) = zeros(size(squeeze(A(:,:,1,1))));
+end
 %
 % strain from displacement gradient
 De_E = NaN(size(du_dx));
@@ -542,7 +598,40 @@ elseif isfield(Maps, 'Exponent') %Ramberg-Osgood equation
     % Newton-Raphson method to solve for stress
     tolerance = 1e-6;
     max_iterations = 100;
+    % Loop over each point in the strain map
+    for yi = 1:size(A, 1)
+        for xi = 1:size(A, 2)
+            for iV = 1:3
+            % Extract strain tensor (assumed symmetric 3x3 or 2x2)
+            epsilon = squeeze(De_E(yi, xi, :, :,iV));
 
+            % Initial guess for stress: linear elastic
+            sigma = Maps.E * epsilon;
+
+            % Newton–Raphson iteration
+            for iter = 1:max_iterations
+                hydrostatic = trace(sigma) / size(sigma,1);% Deviatoric part
+                sigma_dev = sigma - hydrostatic * eye(size(sigma));
+                sigma_eq = sqrt(3/2) * norm(sigma_dev, 'fro');% Equivalent von Mises stress
+                % Compute Ramberg–Osgood model terms
+                epsilon_trial = sigma / Maps.E + ...
+                    Maps.Yield_offset * (sigma_eq / Maps.yield)^Maps.Exponent * ...
+                    (sigma_dev / sigma_eq);
+                res = epsilon - epsilon_trial;% Residual
+                if norm(res, 'fro') < tolerance% Check convergence
+                    break;
+                end
+                % Tangent stiffness (approximate Jacobian)
+                % Derivative of R-O model is nonlinear; we use simple numerical damping
+                delta = 1e-6;
+                sigma = sigma + delta * res;  % Basic correction step
+            end
+            % Store the converged stress tensor
+            De_S(yi, xi, :, :,iV) = sigma;
+            end
+        end
+    end
+    %{
     % Loop over each point in the 2D map
     for yi = 1:size(A, 1)
         for xi = 1:size(A, 2)
@@ -580,6 +669,7 @@ elseif isfield(Maps, 'Exponent') %Ramberg-Osgood equation
             end
         end
     end
+    %}
 end
 end
 
@@ -589,6 +679,12 @@ for iV = 1:3
     for xi = 1:3
         eval(sprintf('A(:,:,iV,xi) = Maps.du%d%d;', iV, xi));  % Assuming Maps.E11, Maps.E12, etc.
     end
+end
+
+if strcmpi(Maps.Operation, 'F')
+    A(:,:,1,1) = A(:,:,1,1)-1;
+    A(:,:,2,2) = A(:,:,2,2)-1;
+    A(:,:,3,3) = A(:,:,3,3)-1;
 end
 De_E = NaN(size(A));
 % Strain from displacement gradient
@@ -634,19 +730,47 @@ elseif isfield(Maps, 'Exponent') %Ramberg-Osgood equation
     % Newton-Raphson method to solve for stress
     tolerance = 1e-6;
     max_iterations = 100;
+    % Loop over each point in the strain map
+    for yi = 1:size(A, 1)
+        for xi = 1:size(A, 2)
+            % Extract strain tensor (assumed symmetric 3x3 or 2x2)
+            epsilon = squeeze(De_E(yi, xi, :, :));
 
+            % Initial guess for stress: linear elastic
+            sigma = Maps.E * epsilon;
+
+            % Newton–Raphson iteration
+            for iter = 1:max_iterations
+                hydrostatic = trace(sigma) / size(sigma,1);% Deviatoric part
+                sigma_dev = sigma - hydrostatic * eye(size(sigma));
+                sigma_eq = sqrt(3/2) * norm(sigma_dev, 'fro');% Equivalent von Mises stress
+                % Compute Ramberg–Osgood model terms
+                epsilon_trial = sigma / Maps.E + ...
+                    Maps.Yield_offset * (sigma_eq / Maps.yield)^Maps.Exponent * ...
+                    (sigma_dev / sigma_eq);
+                res = epsilon - epsilon_trial;% Residual
+                if norm(res, 'fro') < tolerance% Check convergence
+                    break;
+                end
+                % Tangent stiffness (approximate Jacobian)
+                % Derivative of R-O model is nonlinear; we use simple numerical damping
+                delta = 1e-6;
+                sigma = sigma + delta * res;  % Basic correction step
+            end
+            % Store the converged stress tensor
+            De_S(yi, xi, :, :) = sigma;
+        end
+    end
+    %{
     % Loop over each point in the 2D map
     for yi = 1:size(A, 1)
         for xi = 1:size(A, 2)
-            % Initial guess for stress
-            sigma_ij = De_E(yi, xi, :, :) * Maps.E;
-
+            sigma_ij = De_E(yi, xi, :, :) * Maps.E; % Initial guess for stress
             % Newton-Raphson method to solve for stress
             for iter = 1:max_iterations
                 % Equivalent stress (von Mises stress)
                 sigma_eq = sqrt(3/2 * sum(sum((sigma_ij...
                     - mean(sigma_ij, 'all','omitnan')).^2)));
-
                 % Ramberg-Osgood equation
                 f = De_E(yi, xi, :, :) - (sigma_ij / Maps.E) - ...
                     Maps.Yield_offset.* (sigma_eq / Maps.yield)^...
@@ -654,9 +778,7 @@ elseif isfield(Maps, 'Exponent') %Ramberg-Osgood equation
                 df = -1 / Maps.E - Maps.Yield_offset.* ...
                     Maps.Exponent * (sigma_eq / Maps.yield)^...
                     (Maps.Exponent - 1) * (sigma_ij / sigma_eq);
-
-                % Update stress
-                sigma_new = sigma_ij - f./df;
+                sigma_new = sigma_ij - f./df;% Update stress
 
                 % Check for convergence
                 if abs(sigma_new - sigma_ij) < tolerance
@@ -664,12 +786,11 @@ elseif isfield(Maps, 'Exponent') %Ramberg-Osgood equation
                 end
                 sigma_ij = sigma_new;
             end
-
-            % Store the calculated stress
-            De_S(yi,xi, :, :) = sigma_ij;
+            De_S(yi,xi, :, :) = sigma_ij;% Store the calculated stress
             clear sigma_ij f df
         end
     end
+    %}
 end
 end
 
@@ -989,17 +1110,17 @@ end
 %%
 function plot_JKIII(KI,KII,KIII,J,stepsize,input_unit)
 set(0,'defaultAxesFontSize',22);       set(0,'DefaultLineMarkerSize',14)
-Contour = (1:length(J.Raw))*stepsize;
+Domain = (1:length(J.Raw))*stepsize;
 fig=figure;set(fig,'defaultAxesColorOrder',[[0 0 0]; [1 0 0]]);
 yyaxis left;    hold on;
-plot(Contour,KI.Raw,'k--o','MarkerEdgeColor','k','LineWidth',4);
-plot(Contour,KII.Raw,'k--s','MarkerEdgeColor','k','LineWidth',1.5,'MarkerFaceColor','k');
-plot(Contour,KIII.Raw,'k--d','MarkerEdgeColor','k','LineWidth',4');
+plot(Domain,KI.Raw,'k--o','MarkerEdgeColor','k','LineWidth',4);
+plot(Domain,KII.Raw,'k--s','MarkerEdgeColor','k','LineWidth',1.5,'MarkerFaceColor','k');
+plot(Domain,KIII.Raw,'k--d','MarkerEdgeColor','k','LineWidth',4');
 ylabel('K (MPa m^{0.5})'); hold off
 Kd = [KI.Raw(:); KII.Raw(:); KIII.Raw(:)];
 if min(Kd(:))>0;     ylim([min(Kd(:))-abs(min(Kd(:))/3) max(Kd(:))+min(Kd(:))/3]);      end
 yyaxis right;
-plot(Contour,J.Raw,'r--<','MarkerEdgeColor','r','LineWidth',1.5,'MarkerFaceColor','r');
+plot(Domain,J.Raw,'r--<','MarkerEdgeColor','r','LineWidth',1.5,'MarkerFaceColor','r');
 ylabel('J (J/m^2)');        ylim([min(J.Raw)-abs(min(J.Raw)/4) max(J.Raw)+min(J.Raw)/4]);
 legend(['K_{I} = '     num2str(KI.true)   ' ± ' num2str(KI.div)  ' MPa\surdm' ],...
     ['K_{II} = '       num2str(KII.true)  ' ± ' num2str(KII.div) ' MPa\surdm' ],...
@@ -1016,13 +1137,13 @@ ax1.LineWidth = 1;
 % Add two more axes objects, with small multiplier for height, and offset for bottom
 ax2 = axes('position', (axPos .* [1 1 1 1e-3]) + [0 0.08 0 0], 'color', 'none', 'linewidth', 1);
 % You can change the limits of the new axes using XLim
-ax2.XLim = [0 length(Contour)+1];     ax1.XLim = [0 max(Contour)+stepsize];
+ax2.XLim = [0 length(Domain)+1];     ax1.XLim = [0 max(Domain)+stepsize];
 % You can label the axes using XLabel.String
 if strcmpi(input_unit,'um')
     input_unit = '\mum';
 end
-ax1.XLabel.String = ['Contour Distance [' input_unit ']'];
-ax2.XLabel.String = 'Contour Number';
+ax1.XLabel.String = ['Domain size [' input_unit ']'];
+ax2.XLabel.String = 'Domain number';
 end
 
 %%
@@ -1063,7 +1184,7 @@ function plot_JML(M, J, stepsize, input_unit,LorM)
 Md = M.Raw(:);
 set(0, 'defaultAxesFontSize', 22);
 set(0, 'DefaultLineMarkerSize', 14);
-Contour = (1:length(J.vectorial)) * stepsize;
+Domain = (1:length(J.vectorial)) * stepsize;
 
 % Create figure and set color order
 fig = figure;
@@ -1072,9 +1193,9 @@ set(fig, 'defaultAxesColorOrder', [[0 0 0]; [1 0 0]]);
 % Plot M on the left y-axis
 yyaxis left;
 hold on;
-% plot(Contour, M.Raw, 'k--d', 'MarkerEdgeColor', 'k', 'LineWidth', 4);  % Plot M.MRaw
-plot(Contour, M.Raw(1,:), 'k--o', 'LineWidth', 4);  % Plot M.MRaw
-plot(Contour, M.Raw(2,:), 'k--s', 'LineWidth', 4, 'MarkerFaceColor','k');  % Plot M.MRaw
+% plot(Domain, M.Raw, 'k--d', 'MarkerEdgeColor', 'k', 'LineWidth', 4);  % Plot M.MRaw
+plot(Domain, M.Raw(1,:), 'k--o', 'LineWidth', 4);  % Plot M.MRaw
+plot(Domain, M.Raw(2,:), 'k--s', 'LineWidth', 4, 'MarkerFaceColor','k');  % Plot M.MRaw
 ylabel([LorM ' (J/m)']);
 Kd = M.Raw(:);
 if min(Kd(:))>0;     ylim([min(Kd(:))-abs(min(Kd(:))/3) max(Kd(:))+min(Kd(:))/3]);      end
@@ -1082,8 +1203,8 @@ hold off;
 
 % Plot J on the right y-axis
 yyaxis right; hold on
-plot(Contour, J.vectorial(1,:), 'r-->', 'MarkerEdgeColor', 'r', 'LineWidth', 1.5, 'MarkerFaceColor', 'r');  % Plot J.JRaw
-plot(Contour, J.vectorial(2,:), 'r--d', 'MarkerEdgeColor', 'r', 'LineWidth', 1.5);  % Plot J.JRaw
+plot(Domain, J.vectorial(1,:), 'r-->', 'MarkerEdgeColor', 'r', 'LineWidth', 1.5, 'MarkerFaceColor', 'r');  % Plot J.JRaw
+plot(Domain, J.vectorial(2,:), 'r--d', 'MarkerEdgeColor', 'r', 'LineWidth', 1.5);  % Plot J.JRaw
 
 ylabel('J (J/m^2)');
 Kd = J.vectorial(:);
@@ -1109,25 +1230,25 @@ axPos = ax1.Position;
 ax1.Position = axPos + [0 0.2 0 -0.15];
 ax1.LineWidth = 1;
 
-% Add second x-axis for contour number
+% Add second x-axis for Domain number
 ax2 = axes('position', (axPos .* [1 1 1 1e-3]) + [0 0.08 0 0], ...
     'color', 'none', 'linewidth', 1);
-ax2.XLim = [0 length(Contour) + 1];
-ax1.XLim = [0 max(Contour) + stepsize];
+ax2.XLim = [0 length(Domain) + 1];
+ax1.XLim = [0 max(Domain) + stepsize];
 
 % Label the axes
 if strcmpi(input_unit, 'um')
     input_unit = '\mum';
 end
-ax1.XLabel.String = ['Contour Distance [' input_unit ']'];
-ax2.XLabel.String = 'Contour Number';
+ax1.XLabel.String = ['Domain size [' input_unit ']'];
+ax2.XLabel.String = 'Domain number';
 end
 
 %%
 function plot_J_theta(J, stepsize, input_unit)
 set(0, 'defaultAxesFontSize', 22);
 set(0, 'DefaultLineMarkerSize', 14);
-Contour = (1:length(J.vectorial)) * stepsize;
+Domain = (1:length(J.vectorial)) * stepsize;
 
 % Create figure and set color order
 fig = figure;
@@ -1136,8 +1257,8 @@ set(fig, 'defaultAxesColorOrder', [[0 0 0]; [1 0 0]]);
 % Plot M on the left y-axis
 yyaxis right;
 hold on;
-% plot(Contour, M.Raw, 'k--d', 'MarkerEdgeColor', 'k', 'LineWidth', 4);  % Plot M.MRaw
-plot(Contour, J.direction, 'k--o', 'LineWidth', 4);  % Plot M.MRaw
+% plot(Domain, M.Raw, 'k--d', 'MarkerEdgeColor', 'k', 'LineWidth', 4);  % Plot M.MRaw
+plot(Domain, J.direction, 'k--o', 'LineWidth', 4);  % Plot M.MRaw
 ylabel('VCE\circ');
 Kd = J.direction(:);
 if min(Kd(:))>0;     ylim([min(Kd(:))-abs(min(Kd(:))/3) max(Kd(:))+min(Kd(:))/3]);      end
@@ -1145,18 +1266,17 @@ hold off;
 
 % Plot J on the right y-axis
 yyaxis left; hold on
-plot(Contour, J.maxJ, 'r-->', 'MarkerEdgeColor', 'r', 'LineWidth', 1.5, 'MarkerFaceColor', 'r');  % Plot J.JRaw
+plot(Domain, J.maxJ, 'r-->', 'MarkerEdgeColor', 'r', 'LineWidth', 1.5, 'MarkerFaceColor', 'r');  % Plot J.JRaw
 
 ylabel('J (J/m^2)');
-Kd = J.vectorial(:);
+Kd = J.maxJ(:);
 if min(Kd(:))>0;     ylim([min(Kd(:))-abs(min(Kd(:))/3) max(Kd(:))+min(Kd(:))/3]);      end
 hold off
 
 % Update legend to only include M and J
-legend([ 'VCE_{max} = ' num2str(J.direction_true)...
-    ' ± ' num2str(J.direction_div) '\circ'], ...
-    ['J_{1}^{max} = ' num2str(J.maxJ_true) ' ± ' num2str(J.maxJ_div) ' J/m^2'],...
-    'location', 'northoutside', 'box', 'off');
+legend(['J_{1}^{max} = ' num2str(J.maxJ_true) ' ± ' num2str(J.maxJ_div) ' J/m^2'],...
+['VCE_{max} = ' num2str(J.direction_true) ' ± ' num2str(J.direction_div) '\circ'], ...
+'location', 'northoutside', 'box', 'off');
 
 % Set figure size and formatting
 set(gcf, 'position', [660, -70, 750, 1000]);
@@ -1169,18 +1289,18 @@ axPos = ax1.Position;
 ax1.Position = axPos + [0 0.2 0 -0.15];
 ax1.LineWidth = 1;
 
-% Add second x-axis for contour number
+% Add second x-axis for Domain number
 ax2 = axes('position', (axPos .* [1 1 1 1e-3]) + [0 0.08 0 0], ...
     'color', 'none', 'linewidth', 1);
-ax2.XLim = [0 length(Contour) + 1];
-ax1.XLim = [0 max(Contour) + stepsize];
+ax2.XLim = [0 length(Domain) + 1];
+ax1.XLim = [0 max(Domain) + stepsize];
 
 % Label the axes
 if strcmpi(input_unit, 'um')
     input_unit = '\mum';
 end
-ax1.XLabel.String = ['Contour Distance [' input_unit ']'];
-ax2.XLabel.String = 'Contour Number';
+ax1.XLabel.String = ['Domain size [' input_unit ']'];
+ax2.XLabel.String = 'Domain number';
 end
 
 %%
@@ -1363,7 +1483,15 @@ close;
 new_dim = max(rows, cols);
 
 % Create a new matrix of the new dimensions filled with NaNs (or any other placeholder)
-new_data = NaN(new_dim, new_dim);
+new_du11 = NaN(new_dim, new_dim);
+new_du12 = NaN(new_dim, new_dim);
+new_du13 = NaN(new_dim, new_dim);
+new_du21 = NaN(new_dim, new_dim);
+new_du22 = NaN(new_dim, new_dim);
+new_du23 = NaN(new_dim, new_dim);
+new_du31 = NaN(new_dim, new_dim);
+new_du32 = NaN(new_dim, new_dim);
+new_du33 = NaN(new_dim, new_dim);
 
 % Calculate the offset to center the data
 row_offset = floor((new_dim - rows) / 2);
@@ -1433,7 +1561,8 @@ Crop.du33(max(1, 1 + shift_y):min(new_dim, new_dim + shift_y), max(1, 1 + shift_
     new_du33(max(1, 1 - shift_y):min(new_dim, new_dim - shift_y), max(1, 1 - shift_x):min(new_dim, new_dim - shift_x));
 
 % Display the final data
-figure, imagesc(Crop.du11);
+figure, pcolor(Crop.du11);
+set(gca,'Ydir','reverse');colormap jet;shading interp;axis off
 colormap('jet');
 colorbar;
 title('Centered Data');
@@ -1533,23 +1662,23 @@ end
 %%
 function plot_JKeff(K,J,stepsize,input_unit)
 set(0,'defaultAxesFontSize',22);       set(0,'DefaultLineMarkerSize',14)
-Contour = (1:length(J.Raw))*stepsize;
+Domain = (1:length(J.Raw))*stepsize;
 fig=figure;set(fig,'defaultAxesColorOrder',[[0 0 0]; [1 0 0]]);
 yyaxis left;    hold on;
-plot(Contour,K.Raw,'k--o','MarkerEdgeColor','k','LineWidth',4);
-plot(Contour,K.Eff_Raw,'k--s','MarkerEdgeColor','k','LineWidth',1.5,'MarkerFaceColor','k');
+plot(Domain,K.Raw,'k--o','MarkerEdgeColor','k','LineWidth',4);
+plot(Domain,K.Eff_Raw,'k--s','MarkerEdgeColor','k','LineWidth',1.5,'MarkerFaceColor','k');
 ylabel('K (MPa m^{0.5})'); hold off
 Kd = [K.Raw(:); K.Eff_Raw(:)];
 if min(Kd(:))>0;     ylim([min(Kd(:))-abs(min(Kd(:))/3) max(Kd(:))+min(Kd(:))/3]);      end
 yyaxis right; hold on
-plot(Contour,J.Raw,'r--<','MarkerEdgeColor','r','LineWidth',1.5,'MarkerFaceColor','r');
-plot(Contour,J.vectorial_true(1,:),'r--d','MarkerEdgeColor','r','LineWidth',1.5);
-Kd = [J.vectorial_true(1,:)'; J.Raw'];
+plot(Domain,J.Raw,'r--<','MarkerEdgeColor','r','LineWidth',1.5,'MarkerFaceColor','r');
+plot(Domain,J.vectorial(1,:),'r--d','MarkerEdgeColor','r','LineWidth',1.5);
+Kd = [J.vectorial(1,:)'; J.Raw'];
 ylabel('J (J/m^2)');        ylim([min(Kd(:))-abs(min(Kd(:))/3) max(Kd(:))+min(Kd(:))/3]);hold off
 legend(['K_{eff}^{I+II+III} = '     num2str(K.true)   ' ± ' num2str(K.div)  ' MPa\surdm' ],...
     ['K_{eff}^{1} = '       num2str(K.Eff_true)  ' ± ' num2str(K.Eff_div) ' MPa\surdm' ],...
-    ['J_{integral}^{I+II+III} = ' num2str(J.vectorial_true(1))    ' ± ' num2str(J.vectorial_div(1))   ' J/m^2'],...
-    ['J_{1} = ' num2str(J.true)    ' ± ' num2str(J.div)   ' J/m^2'],...
+    ['J_{integral}^{I+II+III} = ' num2str(J.true)    ' ± ' num2str(J.div)   ' J/m^2'],...
+    ['J_{1} = ' num2str(J.vectorial_true(1))    ' ± ' num2str(J.vectorial_div(1))   ' J/m^2'],...
     'location','northoutside','box','off');
 set(gcf,'position',[860,-70,750,1000]);grid on;  box off;
 ax1 = gca;  axPos = ax1.Position;
@@ -1561,13 +1690,13 @@ ax1.LineWidth = 1;
 % Add two more axes objects, with small multiplier for height, and offset for bottom
 ax2 = axes('position', (axPos .* [1 1 1 1e-3]) + [0 0.08 0 0], 'color', 'none', 'linewidth', 1);
 % You can change the limits of the new axes using XLim
-ax2.XLim = [0 length(Contour)+1];     ax1.XLim = [0 max(Contour)+stepsize];
+ax2.XLim = [0 length(Domain)+1];     ax1.XLim = [0 max(Domain)+stepsize];
 % You can label the axes using XLabel.String
 if strcmpi(input_unit,'um')
     input_unit = '\mum';
 end
-ax1.XLabel.String = ['Contour Distance [' input_unit ']'];
-ax2.XLabel.String = 'Contour Number';
+ax1.XLabel.String = ['Domain size [' input_unit ']'];
+ax2.XLabel.String = 'Domain number';
 end
 
 %% sqrt sign

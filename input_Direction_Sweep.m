@@ -3,7 +3,7 @@ clear;  % Remove all variables from the workspace
 close all;  % Close all figure windows
 addpath([pwd '\functions'])
 % Generate synthetic data for a 2D crack analysis
-[~, ~, alldata] = Calibration_2DKIII(3, 1, 2);
+[~, ~, alldata] = Calibration_2DKIII(7.35, 2.15, 0.51);
 
 % Define material properties
 Prop.E = 210e9;  % Young's modulus in Pascals (210 GPa for steel)
@@ -14,7 +14,7 @@ Prop.stressstat = 'plane_stress';  % Stress state assumption
 
 % Define the rotation angles for the crack orientation
 % crack_angles = -90:5:90;  % Angles from -90 to 90 degrees in increments of 5 degrees
-crack_angles = -90:5:90;  % Angles from -90 to 90 degrees in increments of 5 degrees
+crack_angles = -90:1:90;  % Angles from -90 to 90 degrees in increments of 5 degrees
 
 % Preallocate arrays to store results for the J-integral and stress intensity factors
 J_values = NaN(length(crack_angles), 1);  % J-integral values
@@ -115,7 +115,7 @@ errorbar(crack_angles, J_values, J_STD, '--or', 'DisplayName', 'J_{1}^{I+II+III}
 errorbar(crack_angles, Jv_values(:,1), Jv_STD(:,1), '-.sr', 'DisplayName', 'J_{1}', 'MarkerFaceColor', 'r', 'MarkerSize', 11, 'LineWidth', 1);
 errorbar(crack_angles, Jv_values(:,2), Jv_STD(:,2), '-<r', 'DisplayName', 'J_{2}', 'MarkerFaceColor', 'r', 'MarkerSize', 11, 'LineWidth', 1);
 hold off; ylabel('J (J/m^{2})');  % Label for the right y-axis
-line([])
+% line([])
 xlabel('VCE\circ');  % Label for the x-axis (crack angle)
 legend('Location', 'best');  % Add a legend to the plot
 % title('Stress Intensity Factors and J-integral vs Crack Direction Angles');  % Title for the plot

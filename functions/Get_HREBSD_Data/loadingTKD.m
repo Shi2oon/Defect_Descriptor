@@ -34,7 +34,7 @@ C_rotated  = StiffnessRot(rot_sample,iPut.stiffnessvalues);
 for ii = 1:size(Maps.E11_1,1)
     for ij = 1:size(Maps.E11_1,2)
         strain_voight=[Va.E11(ii,ij);Va.E22(ii,ij);Va.E33(ii,ij);...
-                       Va.E12(ii,ij)*2;Va.E13(ii,ij)*2;Va.E23(ii,ij)*2];
+            Va.E12(ii,ij)*2;Va.E13(ii,ij)*2;Va.E23(ii,ij)*2];
         %stress
         stress_voight=C_rotated*strain_voight;
         Va.S11(ii,ij) = stress_voight(1);   Va.S12(ii,ij) = stress_voight(4);
