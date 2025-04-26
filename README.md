@@ -1,4 +1,4 @@
-KIII_2D_v2: This code decompose the Stress intesity factors from strain maps directly without the need for integration
+This code decompose the Stress intesity factors from strain maps directly without the need for integration
 Start with generating strain data using the calibration code and then use the output for the main function
 The code is self contained and does not need extra functions
 
