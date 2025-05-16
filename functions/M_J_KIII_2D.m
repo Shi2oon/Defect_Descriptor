@@ -26,9 +26,9 @@ warning off
 % cooridnate can be a zero column. the 4th to the 9th column are the strain
 % components arranged as
 % Maps = [X(:) Y(:) Z(:) Fe11(:) Fe12(:) Fe13(:) Fe21(:) Fe2(:) Fe23(:) Fe31(:) Fe32(:) Fe33(:)];
-% or A for deformation gradient tensor
+% or A for deformation/displacement gradient tensor
 
-% if the map is a 2D defromation gradient map then zero all out of the plane components
+% if the map is a 2D defromation/displacement gradient map then zero all out of the plane components
 
 % the material paramters as MatProp.E for Young's Modulus and MatProp.nu
 % for Possions ratio. or as a stifness matrix all in Pa
@@ -42,55 +42,42 @@ warning off
 
 % look to the strrcutrure of each variable to see the differance
 
-if isfield(MatProp,'Operation')
+if size(alldata,2)~=1
     if strcmpi(MatProp.Operation, 'DIC')
-        [~,RawData ] = reshapeData(alldata);
-        stepsize = unique(round(diff(unique(RawData.Y1(:))),4));
-        [RawData.E11,RawData.E12,RawData.E13] = crackgradient(RawData.Ux,stepsize);
-        [RawData.E21,RawData.E22,RawData.E23] = crackgradient(RawData.Uy,stepsize);
-        U (:,:,1) = RawData.Ux;        U (:,:,2) = RawData.Uy;% for L integarl
+        [~,Maps ] = reshapeData(alldata);
+        Maps.stepsize = mean(unique(round(diff(unique(Maps.Y(:))),4)),'omitnan');
+        [Maps.du11,Maps.du12,Maps.du13] = crackgradient(Maps.Ux,Maps.stepsize);
+        [Maps.du21,Maps.du22,Maps.du23] = crackgradient(Maps.Uy,Maps.stepsize);
+        [Maps.du31,Maps.du32,Maps.du33] = crackgradient(Maps.Uz,Maps.stepsize);
 
-        if size(alldata,2)==6
-            [RawData.E31,RawData.E32,RawData.E33] = crackgradient(RawData.Uz,stepsize);
-            
-            %{
-            % if you want to validte the code for deformation gradient
-            RawData.E11 = RawData.E11+1;
-            RawData.E22 = RawData.E22+1;
-            RawData.E33 = RawData.E33+1;
-            MatProp.Operation= 'F';
-            %}
-            alldata = [RawData.X1(:) RawData.Y1(:) zeros(size(RawData.Y1(:))) ...
-                RawData.E11(:) RawData.E12(:) RawData.E13(:) ...
-                RawData.E21(:) RawData.E22(:) RawData.E23(:) ...
-                RawData.E31(:) RawData.E32(:) RawData.E33(:)];
-            U (:,:,3) = RawData.Uz; % for L integarl
-        else
-            alldata = [RawData.X1(:) RawData.Y1(:) zeros(size(RawData.Y1(:))) ...
-                RawData.E11(:) RawData.E12(:) zeros(size(RawData.Y1(:)))...
-                RawData.E21(:) RawData.E22(:) zeros(size(RawData.Y1(:))) ...
-                zeros(size(RawData.Y1(:))) zeros(size(RawData.Y1(:))) zeros(size(RawData.Y1(:)))];
-        end
         if ~exist('loopedJ','var')
-        plotDisp(RawData,MatProp.units.xy)
-        if isfield(MatProp,'SavingD')
-            saveas(gcf, [fileparts(MatProp.SavingD) '\u.fig']);
-            saveas(gcf, [fileparts(MatProp.SavingD) '\u.tif']);  close
-        end
+            plotDisp(Maps,MatProp.units.xy)
+            if isfield(MatProp,'SavingD')
+                saveas(gcf, [fileparts(MatProp.SavingD) '\u.fig']);
+                saveas(gcf, [fileparts(MatProp.SavingD) '\u.tif']);  close
+            end
         end
         MatProp.Operation =  'U'; %displcement gradient
-        
+    else
+        [~,Maps]=reshapeDefromationGradient(alldata);
+    end
+else
+    Maps = alldata;
+    if strcmpi(MatProp.Operation, 'DIC')
+        alldata.stepsize = mean(unique(round(diff(unique(alldata.Y(:))),4)),'omitnan');
+        [Maps.du11,Maps.du12,Maps.du13] = crackgradient(alldata.Ux,alldata.stepsize);
+        [Maps.du21,Maps.du22,Maps.du23] = crackgradient(alldata.Uy,alldata.stepsize);
+        try
+        [Maps.du31,Maps.du32,Maps.du33] = crackgradient(alldata.Uz,alldata.stepsize);
+        catch
+            Maps.du31 = zeros(size(Maps.du11));
+            Maps.du32 = zeros(size(Maps.du11));
+            Maps.du33 = zeros(size(Maps.du11));
+        end
+        MatProp.Operation =  'U'; %displcement gradient
     end
 end
 
-if size(alldata,2) == 5 % 2D deformation gradient data
-    alldata = [alldata(:,1) alldata(:,2) zeros(size(alldata(:,2))) ...
-        alldata(:,3) alldata(:,5) zeros(size(alldata(:,2))) ...
-        alldata(:,5) alldata(:,4) zeros(size(alldata(:,2))) ...
-        zeros(size(alldata(:,2))) zeros(size(alldata(:,2))) ...
-        zeros(size(alldata(:,2)))];
-end
-[~,Maps]=reshapeDefromationGradient(alldata);
 if size(MatProp,1) == 6
     Maps.Stiffness = MatProp;
 else
@@ -417,6 +404,9 @@ if isfield(Maps,'SavingD')
     save([Maps.SavingD '\KIII_2D.mat'],'J','K','KI','KII','KIII','Maps','M');
 end
 end
+if isfield(Maps,'SavingD')
+    save([Maps.SavingD '\KIII_2D.mat'],'J','K','KI','KII','KIII','Maps','M');
+end
 %}
 
 %% L-integral (not correct!, see https://doi.org/10.1007/s00707-014-1152-y
@@ -575,6 +565,7 @@ if ~isfield(Maps, 'Stiffness') && ~isfield(Maps, 'Exponent') % linear istropic m
     De_S(:,:,3,1,:) = Maps.G*(De_E(:,:,1,3,:) + De_E(:,:,3,1,:));
     De_S(:,:,2,3,:) = Maps.G*(De_E(:,:,2,3,:) + De_E(:,:,3,2,:));
     De_S(:,:,3,2,:) = Maps.G*(De_E(:,:,2,3,:) + De_E(:,:,3,2,:));
+    
 elseif isfield(Maps, 'Stiffness')% ansitropic material
     for yi = 1:size(A,1)
         for xi = 1:size(A,2)
@@ -1309,19 +1300,19 @@ function [ alldata,dataum ] = reshapeData( raw_data )
 %   Detailed explanation goes here
 % try
 %     if size(raw_data,2) == 4
-%         dataum.X1  = reshape(raw_data(:,1),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))));
-%         dataum.Y1  = reshape(raw_data(:,2),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))));
+%         dataum.X  = reshape(raw_data(:,1),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))));
+%         dataum.Y  = reshape(raw_data(:,2),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))));
 %         dataum.Ux  = reshape(raw_data(:,3),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))));
 %         dataum.Uy  = reshape(raw_data(:,4),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))));
-%         alldata = [dataum.X1(:) dataum.Y1(:) dataum.Ux(:) dataum.Uy(:)];
+%         alldata = [dataum.X(:) dataum.Y(:) dataum.Ux(:) dataum.Uy(:)];
 %     else
-%         dataum.X1  = reshape(raw_data(:,1),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))),length(unique(raw_data(:,3))));
-%         dataum.Y1  = reshape(raw_data(:,2),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))),length(unique(raw_data(:,3))));
-%         dataum.Z1  = reshape(raw_data(:,3),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))),length(unique(raw_data(:,3))));
+%         dataum.X  = reshape(raw_data(:,1),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))),length(unique(raw_data(:,3))));
+%         dataum.Y  = reshape(raw_data(:,2),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))),length(unique(raw_data(:,3))));
+%         dataum.Z  = reshape(raw_data(:,3),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))),length(unique(raw_data(:,3))));
 %         dataum.Ux  = reshape(raw_data(:,4),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))),length(unique(raw_data(:,3))));
 %         dataum.Uy  = reshape(raw_data(:,5),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))),length(unique(raw_data(:,3))));
 %         dataum.Uz  = reshape(raw_data(:,6),length(unique(raw_data(:,1))),length(unique(raw_data(:,2))),length(unique(raw_data(:,3))));
-%         alldata = [dataum.X1(:) dataum.Y1(:) dataum.Z1(:) dataum.Ux(:) dataum.Uy(:) dataum.Uz(:)];
+%         alldata = [dataum.X(:) dataum.Y(:) dataum.Z(:) dataum.Ux(:) dataum.Uy(:) dataum.Uz(:)];
 %     end
 % catch
 try
@@ -1346,6 +1337,7 @@ uxMap = NaN(nRows, nCols); %Initialise
 uyMap = NaN(nRows, nCols); %Initialise
 
 if size(raw_data,2) == 6
+    raw_data(:,3) = zeros(size(raw_data(:,2)));
     z  = raw_data(:,3);
     zVec = unique(z);
     ux = raw_data(:,4);
@@ -1391,8 +1383,8 @@ for iRow = 1:nRows % loop rows
     end
 end
 
-dataum.X1 = xMap;
-dataum.Y1 = yMap;
+dataum.X = xMap;
+dataum.Y = yMap;
 % dataum.Uy = uyMap;
 % dataum.Ux = uxMap;
 % threshold = 0.95;
@@ -1401,11 +1393,14 @@ dataum.Ux = uxMap;
 % [ uyMap ] = dispFieldSmoothing( uyMap, threshold );
 dataum.Uy = uyMap;
 
-alldata = [dataum.X1(:) dataum.Y1(:) dataum.Ux(:) dataum.Uy(:)];
+alldata = [dataum.X(:) dataum.Y(:) dataum.Ux(:) dataum.Uy(:)];
 if size(raw_data,2) == 6
-    dataum.Z1 = zMap;
+    dataum.Z = zMap;
     dataum.Uz = uzMap;
-    alldata = [dataum.X1(:) dataum.Y1(:) dataum.Z1(:) dataum.Ux(:) dataum.Uy(:) dataum.Uz(:)];
+    alldata = [dataum.X(:) dataum.Y(:) dataum.Z(:) dataum.Ux(:) dataum.Uy(:) dataum.Uz(:)];
+else
+    dataum.Z = zeros(size(xMap));
+    dataum.Uz = zeros(size(uxMap));
 end
 catch
     % if the data is not regulary grides use the code below
@@ -1419,7 +1414,7 @@ catch
         F = scatteredInterpolant(raw_data(:,1), raw_data(:,2), raw_data(:,4),'natural');
         Uy = F(x, y);
         alldata = [x(:),y(:),Ux(:),Uy(:)];
-        dataum.X1 = x;  dataum.Y1 = y;
+        dataum.X = x;  dataum.Y = y;
         dataum.Ux = Ux; dataum.Uy = Uy;
     elseif size(raw_data,2)==6
         F = scatteredInterpolant(raw_data(:,1), raw_data(:,2), raw_data(:,4),'natural');
@@ -1429,7 +1424,7 @@ catch
         F = scatteredInterpolant(raw_data(:,1), raw_data(:,2), raw_data(:,6),'natural');
         Uz = F(x, y);
         alldata = [x(:),y(:),zeros(length(x(:)),1), Ux(:),Uy(:),Uz(:)];
-        dataum.X1 = x;  dataum.Y1 = y;  dataum.Z1 = zeros(size(y));
+        dataum.X = x;  dataum.Y = y;  dataum.Z = zeros(size(y));
         dataum.Ux = Ux; dataum.Uy = Uy; dataum.Uz = Uz;
     end
     %}
@@ -1443,9 +1438,9 @@ else
 	Fy = scatteredInterpolant(raw_data(:,1), raw_data(:,2), raw_data(:,4),'natural','nearest');
 	X = linspace(min(raw_data(:,1)),max(raw_data(:,1)),300);
 	Y = min(raw_data(:,2)):abs(X(2)-X(1)):max(raw_data(:,2));
-	[dataum.X1,dataum.Y1] = meshgrid(X,Y);
-	Ux = Fx(dataum.X1(:),dataum.Y1(:));
-	Uy = Fy(dataum.X1(:),dataum.Y1(:));
+	[dataum.X,dataum.Y] = meshgrid(X,Y);
+	Ux = Fx(dataum.X(:),dataum.Y(:));
+	Uy = Fy(dataum.X(:),dataum.Y(:));
     dataum.Ux = reshape(Ux,length(Y),length(X));
     dataum.Uy = reshape(Uy,length(Y),length(X));
 	% scatter3(x(:),y(:),Ux,[],Ux); view([0 90])
@@ -1626,11 +1621,11 @@ end
 %% plot
 function plotDisp(Maps,input_unit)
 figure;
-s1=subplot(1,3,1);  	pcolor(Maps.X1,Maps.Y1,Maps.Ux);
+s1=subplot(1,3,1);  	pcolor(Maps.X,Maps.Y,Maps.Ux);
 title(['U_{x}'],'fontsize',19);   shading interp;
 axis image; axis off; colormap jet;         box off;
 c  =colorbar;	cU(1,:) = c.Limits;         colorbar off;
-s2=subplot(1,3,2);  	pcolor(Maps.X1,Maps.Y1,Maps.Uy);
+s2=subplot(1,3,2);  	pcolor(Maps.X,Maps.Y,Maps.Uy);
 title(['U_{y}'],'fontsize',19);   shading interp;
 axis image; axis off; colormap jet;         box off; %set(gca,'Ydir','reverse')
 c  =colorbar;	cU(2,:) = c.Limits;         colorbar off;
@@ -1640,11 +1635,11 @@ if ~isfield(Maps,'Uz')
 else
     titleA = 'U_{z}';
 end
-s3=subplot(1,3,3);  	pcolor(Maps.X1,Maps.Y1,Maps.Uz);
+s3=subplot(1,3,3);  	pcolor(Maps.X,Maps.Y,Maps.Uz);
 title(titleA,'fontsize',19);   shading interp;
 axis image; axis off; colormap jet;         box off; %set(gca,'Ydir','reverse')
 c  =colorbar;	cU(3,:) = c.Limits;         colorbar off;
-addScale([1 3 3],[Maps.X1(:) Maps.Y1(:)],input_unit);
+addScale([1 3 3],[Maps.X(:) Maps.Y(:)],input_unit);
 %
 cbax  = axes('visible', 'off');             cU(abs(cU)==1)=0;
 caxis(cbax,[min(cU(:)) max(cU(:))]);
