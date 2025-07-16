@@ -45,10 +45,22 @@ warning off
 if size(alldata,2)~=1
     if strcmpi(MatProp.Operation, 'DIC')
         [~,Maps ] = reshapeData(alldata);
+
+        switch MatProp.units.xy
+            case 'm'
+                saf = 1;
+            case 'mm'
+                saf = 1e-3;
+            case 'um'
+                saf = 1e-6;
+            case 'nm'
+                saf = 1e-8;
+        end
+
         Maps.stepsize = mean(unique(round(diff(unique(Maps.Y(:))),4)),'omitnan');
-        [Maps.du11,Maps.du12,Maps.du13] = crackgradient(Maps.Ux,Maps.stepsize);
-        [Maps.du21,Maps.du22,Maps.du23] = crackgradient(Maps.Uy,Maps.stepsize);
-        [Maps.du31,Maps.du32,Maps.du33] = crackgradient(Maps.Uz,Maps.stepsize);
+        [Maps.du11,Maps.du12,Maps.du13] = crackgradient(Maps.Ux*saf,Maps.stepsize*saf);
+        [Maps.du21,Maps.du22,Maps.du23] = crackgradient(Maps.Uy*saf,Maps.stepsize*saf);
+        [Maps.du31,Maps.du32,Maps.du33] = crackgradient(Maps.Uz*saf,Maps.stepsize*saf);
 
         if ~exist('loopedJ','var')
             plotDisp(Maps,MatProp.units.xy)
@@ -159,7 +171,7 @@ else
     Maps.E = Maps.E*Saf;
     Maps.G = Maps.E/(2*(1 + Maps.nu)); %shear modulus
     if strcmpi(Maps.stressstat,'plane_strain')
-        Maps.E = Maps.E/(1-Maps.nu^2);% for HR-EBSD plane stress conditions
+        Maps.E = Maps.E/(1-Maps.nu^2);
     end
 end
 switch Maps.units.xy
@@ -570,18 +582,39 @@ elseif isfield(Maps, 'Stiffness')% ansitropic material
     for yi = 1:size(A,1)
         for xi = 1:size(A,2)
             for iV = 1:3
-                e_voight = [De_E(yi,xi,1,1,iV);  De_E(yi,xi,2,2,iV);...
-                    De_E(yi,xi,3,3,iV);   ...
-                    De_E(yi,xi,1,2,iV) + De_E(yi,xi,2,1,iV); ...
-                    De_E(yi,xi,1,3,iV) + De_E(yi,xi,3,1,iV); ...
-                    De_E(yi,xi,2,3,iV) + De_E(yi,xi,3,2,iV)];
+                e_voight = [De_E(yi,xi,1,1,iV);  
+                            De_E(yi,xi,2,2,iV); 
+                            De_E(yi,xi,3,3,iV);   
+                            De_E(yi,xi,2,3,iV) + De_E(yi,xi,3,2,iV);
+                            De_E(yi,xi,1,3,iV) + De_E(yi,xi,3,1,iV); 
+                            De_E(yi,xi,1,2,iV) + De_E(yi,xi,2,1,iV)];
+
+            % Adjust stiffness matrix for plane condition
+            switch Maps.stressstat
+                case 'plane_stress'
+                    % Extract 3x3 in-plane submatrix
+                    C_red = Maps.Stiffness([1 2 6], [1 2 6]);
+                    % Effective compliance matrix (inverse of reduced stiffness)
+                    S_red = inv(C_red);
+
+                case 'plane_strain'
+                    % Compute 2D effective stiffness matrix using Schur complement
+                    C_2D =  Maps.Stiffness([1 2 6], [1 2 6]) - ...
+                        Maps.Stiffness([1 2 6],3) * ...
+                        (1/Maps.Stiffness(3,3)) * Maps.Stiffness(3,[1 2 6]);
+                    S_red = inv(C_2D);
+            end
+            % Effective modulus and Poisson's ratio
+            Maps.E = 1 / S_red(1,1);
+            Maps.nu = -S_red(1,2) / S_red(1,1);
+
                 s_voight = Maps.Stiffness*e_voight;
-                De_S(yi,xi,:,:,iV) = [s_voight(1),s_voight(4),s_voight(5);
-                    s_voight(4),s_voight(2),s_voight(6);
-                    s_voight(5),s_voight(6),s_voight(3)];
-                De_E(yi,xi,:,:,iV)=[e_voight(1),  e_voight(4)/2,e_voight(5)/2;
-                    e_voight(4)/2,e_voight(2),  e_voight(6)/2;
-                    e_voight(5)/2,e_voight(6)/2,e_voight(3)];
+                De_S(yi,xi,:,:,iV) = [s_voight(1),s_voight(6)/2,s_voight(5);
+                                    s_voight(6)/2,s_voight(2),s_voight(4)/2;
+                                    s_voight(5),s_voight(4)/2,s_voight(3)];
+                De_E(yi,xi,:,:,iV)=[e_voight(1),  e_voight(6)/2,e_voight(5)/2;
+                    e_voight(6)/2,e_voight(2),  e_voight(4)/2;
+                    e_voight(5)/2,e_voight(4)/2,e_voight(3)];
             end
         end
     end
@@ -704,17 +737,39 @@ if ~isfield(Maps, 'Stiffness') && ~isfield(Maps, 'Exponent') % linear isotropic 
 elseif isfield(Maps, 'Stiffness') % anisotropic material
     for yi = 1:size(A, 1)
         for xi = 1:size(A, 2)
-            e_voight = [De_E(yi, xi, 1, 1); De_E(yi, xi, 2, 2); De_E(yi, xi, 3, 3); ...
-                        De_E(yi, xi, 1, 2) + De_E(yi, xi, 2, 1); ...
-                        De_E(yi, xi, 1, 3) + De_E(yi, xi, 3, 1); ...
-                        De_E(yi, xi, 2, 3) + De_E(yi, xi, 3, 2)];
+            e_voight = [De_E(yi, xi, 1, 1); 
+                        De_E(yi, xi, 2, 2); 
+                        De_E(yi, xi, 3, 3);
+                        De_E(yi, xi, 2, 3) + De_E(yi, xi, 3, 2);
+                        De_E(yi, xi, 1, 3) + De_E(yi, xi, 3, 1);
+                        De_E(yi, xi, 1, 2) + De_E(yi, xi, 2, 1)];
+
+            % Adjust stiffness matrix for plane condition
+            switch Maps.stressstat
+                case 'plane_stress'
+                    % Extract 3x3 in-plane submatrix
+                    C_red = Maps.Stiffness([1 2 6], [1 2 6]);
+                    % Effective compliance matrix (inverse of reduced stiffness)
+                    S_red = inv(C_red);
+
+                case 'plane_strain'
+                    % Compute 2D effective stiffness matrix using Schur complement
+                    C_2D =  Maps.Stiffness([1 2 6], [1 2 6]) - ...
+                        Maps.Stiffness([1 2 6],3) * ...
+                        (1/Maps.Stiffness(3,3)) * Maps.Stiffness(3,[1 2 6]);
+                    S_red = inv(C_2D);
+            end
+            % Effective modulus and Poisson's ratio
+            Maps.E = 1 / S_red(1,1);
+            Maps.nu = -S_red(1,2) / S_red(1,1);
+
             s_voight = Maps.Stiffness * e_voight;
-            De_S(yi, xi, :, :) = [s_voight(1), s_voight(4), s_voight(5); ...
-                                  s_voight(4), s_voight(2), s_voight(6); ...
-                                  s_voight(5), s_voight(6), s_voight(3)];
-            De_E(yi, xi, :, :) = [e_voight(1), e_voight(4)/2, e_voight(5)/2; ...
-                                  e_voight(4)/2, e_voight(2), e_voight(6)/2; ...
-                                  e_voight(5)/2, e_voight(6)/2, e_voight(3)];
+            De_S(yi, xi, :, :) = [s_voight(1), s_voight(6), s_voight(5)/2; ...
+                                  s_voight(6)/2, s_voight(2), s_voight(4)/2; ...
+                                  s_voight(5), s_voight(4)/2, s_voight(3)];
+            De_E(yi, xi, :, :) = [e_voight(1), e_voight(6)/2, e_voight(5)/2; ...
+                                  e_voight(6)/2, e_voight(2), e_voight(4)/2; ...
+                                  e_voight(5)/2, e_voight(4)/2, e_voight(3)];
         end
     end
 elseif isfield(Maps, 'Exponent') %Ramberg-Osgood equation
@@ -1664,12 +1719,12 @@ plot(Domain,K.Raw,'k--o','MarkerEdgeColor','k','LineWidth',4);
 plot(Domain,K.Eff_Raw,'k--s','MarkerEdgeColor','k','LineWidth',1.5,'MarkerFaceColor','k');
 ylabel('K (MPa m^{0.5})'); hold off
 Kd = [K.Raw(:); K.Eff_Raw(:)];
-if min(Kd(:))>0;     ylim([min(Kd(:))-abs(min(Kd(:))/3) max(Kd(:))+min(Kd(:))/3]);      end
+if min(Kd(:))>0;     ylim([min(Kd(:))-abs(min(Kd(:))/3) max(Kd(:))+abs(min(Kd(:)))/3]);      end
 yyaxis right; hold on
 plot(Domain,J.Raw,'r--<','MarkerEdgeColor','r','LineWidth',1.5,'MarkerFaceColor','r');
 plot(Domain,J.vectorial(1,:),'r--d','MarkerEdgeColor','r','LineWidth',1.5);
 Kd = [J.vectorial(1,:)'; J.Raw'];
-ylabel('J (J/m^2)');        ylim([min(Kd(:))-abs(min(Kd(:))/3) max(Kd(:))+min(Kd(:))/3]);hold off
+ylabel('J (J/m^2)');        ylim([min(Kd(:))-abs(min(Kd(:))/3) max(Kd(:))+abs(min(Kd(:)))/3]);hold off
 legend(['K_{eff}^{I+II+III} = '     num2str(K.true)   ' ± ' num2str(K.div)  ' MPa\surdm' ],...
     ['K_{eff}^{1} = '       num2str(K.Eff_true)  ' ± ' num2str(K.Eff_div) ' MPa\surdm' ],...
     ['J_{integral}^{I+II+III} = ' num2str(J.true)    ' ± ' num2str(J.div)   ' J/m^2'],...

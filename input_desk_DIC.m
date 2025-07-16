@@ -39,7 +39,7 @@ DataDirect = fullfile(pwd,'Data','3160Jm.dat'); % file locatio
 Data = importdata(DataDirect);
 [K,KI,KII,KIII,J,M,Maps] = M_J_KIII_2D(Data.data,Prop);
 
-%% %% input desk for 2D istropic materials
+%% input desk for 2D istropic materials
 clc;clear;close all
 % Make sure the grid spacing is equal in x and y direction, also make sure
 % the crack is at the centre of the map
