@@ -66,9 +66,9 @@ M4.data = [M4.X(:) M4.Y(:) M4.Z(:) M4.Ux(:) M4.Uy(:) M4.Uz(:)]*saf;
 M2.X = M2.X*saf;
 M2.Y = M2.Y*saf;
 M2.Z = M2.Z*saf;
-M4.X = M2.X;%*saf;
-M4.Y = M2.Y;%;
-M4.Z = M2.Z;%;
+M4.X = M2.X;            M4.Ux = M4.Ux*saf;
+M4.Y = M2.Y;            M4.Uy = M4.Uy*saf;
+M4.Z = M2.Z;            M4.Uz = M4.Uz*saf;
 
 % Maps.stepsize = Maps.stepsize*saf;
  

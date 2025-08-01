@@ -60,7 +60,13 @@ if size(alldata,2)~=1
         Maps.stepsize = mean(unique(round(diff(unique(Maps.Y(:))),4)),'omitnan');
         [Maps.du11,Maps.du12,Maps.du13] = crackgradient(Maps.Ux*saf,Maps.stepsize*saf);
         [Maps.du21,Maps.du22,Maps.du23] = crackgradient(Maps.Uy*saf,Maps.stepsize*saf);
+        try
         [Maps.du31,Maps.du32,Maps.du33] = crackgradient(Maps.Uz*saf,Maps.stepsize*saf);
+                catch
+            Maps.du31 = zeros(size(Maps.du11));
+            Maps.du32 = zeros(size(Maps.du11));
+            Maps.du33 = zeros(size(Maps.du11));
+        end
 
         if ~exist('loopedJ','var')
             plotDisp(Maps,MatProp.units.xy)
@@ -76,12 +82,22 @@ if size(alldata,2)~=1
 else
     Maps = alldata;
     if strcmpi(MatProp.Operation, 'DIC')
-        alldata.stepsize = mean(unique(round(diff(unique(alldata.Y(:))),4)),'omitnan');
-        [Maps.du11,Maps.du12,Maps.du13] = crackgradient(alldata.Ux,alldata.stepsize);
-        [Maps.du21,Maps.du22,Maps.du23] = crackgradient(alldata.Uy,alldata.stepsize);
+        switch MatProp.units.xy
+            case 'm'
+                saf = 1;
+            case 'mm'
+                saf = 1e-3;
+            case 'um'
+                saf = 1e-6;
+            case 'nm'
+                saf = 1e-8;
+        end
+        Maps.stepsize = mean(unique(round(diff(unique(Maps.Y(:))),4)),'omitnan');
+        [Maps.du11,Maps.du12,Maps.du13] = crackgradient(Maps.Ux*saf,Maps.stepsize*saf);
+        [Maps.du21,Maps.du22,Maps.du23] = crackgradient(Maps.Uy*saf,Maps.stepsize*saf);
         try
-        [Maps.du31,Maps.du32,Maps.du33] = crackgradient(alldata.Uz,alldata.stepsize);
-        catch
+        [Maps.du31,Maps.du32,Maps.du33] = crackgradient(Maps.Uz*saf,Maps.stepsize*saf);
+                catch
             Maps.du31 = zeros(size(Maps.du11));
             Maps.du32 = zeros(size(Maps.du11));
             Maps.du33 = zeros(size(Maps.du11));
@@ -308,12 +324,20 @@ KIII.Raw = J.KRaw(3,:)*1e-6;
 contrs   = length(J.Raw);        contrs = contrs - round(contrs*0.3);
 dic = real(ceil(-log10(nanmean(rmoutliers(abs(J.Raw(contrs:end)))))))+2;
 if dic<2;       dic = 2;    end
+[J.true, J.div] = createFit(J.Raw(contrs:end),dic);
+%{
 J.true   = round(mean(J.Raw(contrs:end)),dic);
 J.div    = round(std(J.Raw(contrs:end),1),dic);
-
+%}
 K.Raw    = signed_sqrt(J.Raw*Maps.E)*1e-6;
 dic = real(ceil(-log10(nanmean(rmoutliers(abs(K.Raw(contrs:end)))))))+2;
 if dic<2;       dic = 2;    end
+[K.true, K.div] = createFit(K.Raw(contrs:end),dic);
+[KI.true, KI.div] = createFit(KI.Raw(contrs:end),dic);
+[KII.true, KII.div] = createFit(KII.Raw(contrs:end),dic);
+[KIII.true, KIII.div] = createFit(KIII.Raw(contrs:end),dic);
+
+%{
 K.true   = round(mean(K.Raw(contrs:end)),dic);
 K.div    = round(std(K.Raw(contrs:end),1),dic);
 KI.true  = round(mean(KI.Raw(contrs:end)),dic);
@@ -322,7 +346,7 @@ KII.true = round(mean(KII.Raw(contrs:end)),dic);
 KII.div  = round(std(KII.Raw(contrs:end),1),dic);
 KIII.true= round(mean(KIII.Raw(contrs:end)),dic);
 KIII.div = round(std(KIII.Raw(contrs:end),1),dic);
-%
+%}
 if ~exist('loopedJ','var')
 plot_JKIII(KI,KII,KIII,J,Maps.stepsize/saf,Maps.units.xy)
 if isfield(Maps,'SavingD')
@@ -373,26 +397,36 @@ end
 J.vectorial = J.vectorial(:,1:oh);
 dic = real(ceil(-log10(nanmean(rmoutliers(abs(J.vectorial(contrs:end)))))))+2;
 if dic<2;       dic = 2;    end
-J.vectorial_true   = round(mean(J.vectorial(:,contrs:end),2),dic);
-J.vectorial_div    = round(std(J.vectorial(:,contrs:end),1,2),dic);
+
+[J.vectorial_true, J.vectorial_div] = createFit(J.vectorial(1,contrs:end),dic);
+[J.vectorial_true(2,1), J.vectorial_div(2,1)] = createFit(J.vectorial(2, contrs:end),dic);
+% J.vectorial_true   = round(mean(J.vectorial(:,contrs:end),2),dic);
+% J.vectorial_div    = round(std(J.vectorial(:,contrs:end),1,2),dic);
+
 J.direction = rad2deg(atan(J.vectorial(2,:)./J.vectorial(1,:)));
-J.direction_true   = round(mean(J.direction(:,contrs:end),2),dic);
-J.direction_div    = round(std(J.direction(:,contrs:end),1,2),dic);
+[J.direction_true, J.direction_div] = createFit(J.direction(contrs:end),dic);
+% J.direction_true   = round(mean(J.direction(contrs:end)),dic);
+% J.direction_div    = round(std(J.direction(contrs:end),1),dic);
+
 J.maxJ = sqrt(J.vectorial(1,:).^2+J.vectorial(2,:).^2);
-J.maxJ_true   = round(mean(J.maxJ(:,contrs:end),2),dic);
-J.maxJ_div    = round(std(J.maxJ(:,contrs:end),1,2),dic);
+[J.maxJ_true, J.maxJ_div] = createFit(J.maxJ(contrs:end),dic);
+% J.maxJ_true   = round(mean(J.maxJ(contrs:end)),dic);
+% J.maxJ_div    = round(std(J.maxJ(contrs:end),1),dic);
 
 K.Eff_Raw = signed_sqrt(J.vectorial(1,:)*Maps.E)*1e-6;
 dic = real(ceil(-log10(nanmean(rmoutliers(abs(K.Raw(contrs:end)))))))+2;
 if dic<2;       dic = 2;    end
-K.Eff_true = round(mean(K.Eff_Raw(contrs:end),2),dic);
-K.Eff_div = round(std(K.Eff_Raw(contrs:end),1,2),dic);
+[K.Eff_true, K.Eff_div] = createFit(K.Eff_Raw(contrs:end),dic);
+% K.Eff_true = round(mean(K.Eff_Raw(contrs:end),2),dic);
+% K.Eff_div = round(std(K.Eff_Raw(contrs:end),1,2),dic);
 
 M.Raw = M.Raw(:,1:oh);
 dic = real(ceil(-log10(nanmean(rmoutliers(abs(M.Raw(contrs:end)))))))+2;
 if dic<2;       dic = 2;    end
-M.true  = round(mean(M.Raw(:,contrs:end),2),dic);
-M.div   = round(std(M.Raw(:,contrs:end),1,2),dic);
+[M.true, M.div] = createFit(M.Raw(1,contrs:end),dic);
+[M.true(2,1), M.div(2,1)] = createFit(M.Raw(2, contrs:end),dic);
+% M.true  = round(mean(M.Raw(:,contrs:end),2),dic);
+% M.div   = round(std(M.Raw(:,contrs:end),1,2),dic);
 
 if ~exist('loopedJ','var')
 plot_JML(M,J,Maps.stepsize/saf,Maps.units.xy,'M')
@@ -1757,3 +1791,23 @@ function result = signed_sqrt(x)
     % Apply the sign of the original number to each element
     result = abs_sqrt .* sign(x);
 end
+
+%% fit
+function [True, Div] = createFit(Y,dic)
+X=1:length(Y);
+[xData, yData] = prepareCurveData( X, Y );
+
+% Set up fittype and options.
+ft = fittype( 'poly1' );
+opts = fitoptions( 'Method', 'LinearLeastSquares' );
+opts.Lower = [0 -Inf];
+opts.Robust = 'Bisquare';
+opts.Upper = [0 Inf];
+
+% Fit model to data.
+[fitresult, gof] = fit( xData, yData, ft, opts );
+confint_bounds = confint(fitresult);  % Returns a 2xN matrix: [lower; upper]
+True   = round(fitresult.p2,dic);
+Div    = round(std(confint_bounds(:,2),1),dic);
+end
+
