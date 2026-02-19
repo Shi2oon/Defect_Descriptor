@@ -69,7 +69,7 @@ M2.Z = M2.Z*saf;
 M4.X = M2.X;            M4.Ux = M4.Ux*saf;
 M4.Y = M2.Y;            M4.Uy = M4.Uy*saf;
 M4.Z = M2.Z;            M4.Uz = M4.Uz*saf;
-
+M2.stepsize = M2.stepsize*saf;
 % Maps.stepsize = Maps.stepsize*saf;
  
 M2.xo = [-0.01;-0.99]*saf;        M2.xm = [0.01;-0.99]*saf;
@@ -78,9 +78,9 @@ M2.yo = [0.0026;0.0026]*saf;      M2.ym = [0.03;-0.03]*saf;
 
 %% JMAN approach (without FEM) - Standard J-integral.
 % calculating the displacement gradient tensors
-[M2.du11,M2.du12,M2.du13] = crackgradient(M4.Ux*saf,M2.stepsize*saf);
-[M2.du21,M2.du22,M2.du23] = crackgradient(M4.Uy*saf,M2.stepsize*saf);
-[M2.du31,M2.du32,M2.du33] = crackgradient(M4.Uz*saf,M2.stepsize*saf);
+[M2.du11,M2.du12,M2.du13] = crackgradient(M4.Ux,M2.stepsize);
+[M2.du21,M2.du22,M2.du23] = crackgradient(M4.Uy,M2.stepsize);
+[M2.du31,M2.du32,M2.du33] = crackgradient(M4.Uz,M2.stepsize);
 alldata = [M2.X(:) M2.Y(:) M2.Z(:) M2.du11(:) M2.du12(:) M2.du13(:)...
      M2.du21(:) M2.du22(:) M2.du23(:) M2.du31(:) M2.du32(:) M2.du33(:)]; 
 %% defromation gradient
