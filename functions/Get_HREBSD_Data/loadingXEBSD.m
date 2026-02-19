@@ -21,7 +21,7 @@ if exist('iPut','var') || exist('C_voight','var')
         Va.GND     = GND.total;   % from xEBSD  
     end
     % rotation
-        Va.W11 = zeros(size(Maps.W11_F1));   Va.W12 = Maps.W12_2;	Va.W13 = Maps.W13_F1;           
+        Va.W11 = zeros(size(Maps.W11_F1));   Va.W12 = Maps.W12_F1;	Va.W13 = Maps.W13_F1;           
         Va.W21 = Maps.W21_F1;   Va.W22 = zeros(size(Maps.W11_F1));	Va.W23 = Maps.W23_F1;    
         Va.W31 = Maps.W31_F1;  	Va.W32 = Maps.W32_F1;   Va.W33 = zeros(size(Maps.W11_F1));  
         Va.PH = Maps.PH_2;      Va.MAE = Maps.MAE_2;
