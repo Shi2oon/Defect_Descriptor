@@ -68,13 +68,13 @@ if size(alldata,2)~=1
             Maps.du33 = zeros(size(Maps.du11));
         end
 
-        if ~exist('loopedJ','var')
+        % if ~exist('loopedJ','var')
             plotDisp(Maps,MatProp.units.xy)
             if isfield(MatProp,'SavingD')
                 saveas(gcf, [fileparts(MatProp.SavingD) '\u.fig']);
                 saveas(gcf, [fileparts(MatProp.SavingD) '\u.tif']);  close
             end
-        end
+        % end
         MatProp.Operation =  'U'; %displcement gradient
     else
         [~,Maps]=reshapeDefromationGradient(alldata);
@@ -347,14 +347,14 @@ KII.div  = round(std(KII.Raw(contrs:end),1),dic);
 KIII.true= round(mean(KIII.Raw(contrs:end)),dic);
 KIII.div = round(std(KIII.Raw(contrs:end),1),dic);
 %}
-if ~exist('loopedJ','var')
+% if ~exist('loopedJ','var')
 plot_JKIII(KI,KII,KIII,J,Maps.stepsize/saf,Maps.units.xy)
 if isfield(Maps,'SavingD')
     saveas(gcf, [Maps.SavingD '\J_K.fig']);
     saveas(gcf, [Maps.SavingD '\J_K.tif']);  close all
     save([Maps.SavingD '\KIII_2D.mat'],'J','K','KI','KII','KIII','Maps');
 end
-end
+% end
 %}
 
 %% undecomposed M and J integrals
@@ -391,7 +391,7 @@ for ii = 1:mid-1
     M.Raw(:,ii,:) = sum(sum(MAd.*areaID,'omitnan'),'omitnan');
     J.vectorial(:,ii,:) = sum(sum(JAd.*areaID,'omitnan'),'omitnan');
 end
-
+M.Total = sum(M.Raw,1);
 % to avoid imaginary number (needs to be solved so the code could work for
 % compressive fields
 J.vectorial = J.vectorial(:,1:oh);
@@ -421,14 +421,17 @@ if dic<2;       dic = 2;    end
 % K.Eff_div = round(std(K.Eff_Raw(contrs:end),1,2),dic);
 
 M.Raw = M.Raw(:,1:oh);
+M.Total = M.Total(:,1:oh);
 dic = real(ceil(-log10(nanmean(rmoutliers(abs(M.Raw(contrs:end)))))))+2;
 if dic<2;       dic = 2;    end
 [M.true, M.div] = createFit(M.Raw(1,contrs:end),dic);
 [M.true(2,1), M.div(2,1)] = createFit(M.Raw(2, contrs:end),dic);
+[M.Total_true, M.Total_div] = createFit(M.Total(contrs:end),dic);
+
 % M.true  = round(mean(M.Raw(:,contrs:end),2),dic);
 % M.div   = round(std(M.Raw(:,contrs:end),1,2),dic);
 
-if ~exist('loopedJ','var')
+% if ~exist('loopedJ','var')
 plot_JML(M,J,Maps.stepsize/saf,Maps.units.xy,'M')
 if isfield(Maps,'SavingD')
     saveas(gcf, [Maps.SavingD '\J_M.fig']);
@@ -449,7 +452,7 @@ if isfield(Maps,'SavingD')
     saveas(gcf, [Maps.SavingD '\J_Keff.tif']);  close all
     save([Maps.SavingD '\KIII_2D.mat'],'J','K','KI','KII','KIII','Maps','M');
 end
-end
+% end
 if isfield(Maps,'SavingD')
     save([Maps.SavingD '\KIII_2D.mat'],'J','K','KI','KII','KIII','Maps','M');
 end
@@ -1222,7 +1225,7 @@ ax2.XLim = [0 length(Domain)+1];     ax1.XLim = [0 max(Domain)+stepsize];
 if strcmpi(input_unit,'um')
     input_unit = '\mum';
 end
-ax1.XLabel.String = ['Domain size [' input_unit ']'];
+ax1.XLabel.String = ['Domain length [' input_unit ']'];
 ax2.XLabel.String = 'Domain number';
 end
 
@@ -1261,7 +1264,7 @@ end
 
 %%
 function plot_JML(M, J, stepsize, input_unit,LorM)
-Md = M.Raw(:);
+Md = M.Total;
 set(0, 'defaultAxesFontSize', 22);
 set(0, 'DefaultLineMarkerSize', 14);
 Domain = (1:length(J.vectorial)) * stepsize;
@@ -1274,8 +1277,9 @@ set(fig, 'defaultAxesColorOrder', [[0 0 0]; [1 0 0]]);
 yyaxis left;
 hold on;
 % plot(Domain, M.Raw, 'k--d', 'MarkerEdgeColor', 'k', 'LineWidth', 4);  % Plot M.MRaw
-plot(Domain, M.Raw(1,:), 'k--o', 'LineWidth', 4);  % Plot M.MRaw
-plot(Domain, M.Raw(2,:), 'k--s', 'LineWidth', 4, 'MarkerFaceColor','k');  % Plot M.MRaw
+plot(Domain, M.Total, 'k--o', 'LineWidth', 4);  % Plot M.MRaw
+% plot(Domain, M.Raw(1,:), 'k--s', 'LineWidth', 4, 'MarkerFaceColor','k');  % Plot M.MRaw
+% plot(Domain, M.Raw(2,:), 'k--s', 'LineWidth', 4, 'MarkerFaceColor','k');  % Plot M.MRaw
 ylabel([LorM ' (J/m)']);
 Kd = M.Raw(:);
 if min(Kd(:))>0;     ylim([min(Kd(:))-abs(min(Kd(:))/3) max(Kd(:))+min(Kd(:))/3]);      end
@@ -1292,9 +1296,10 @@ if min(Kd(:))>0;     ylim([min(Kd(:))-abs(min(Kd(:))/3) max(Kd(:))+min(Kd(:))/3]
 hold off
 
 % Update legend to only include M and J
-% legend(['M_{integral} = ' num2str(M.true) ' ± ' num2str(M.div) ' J/m'], ... %N/m
-legend([LorM '_{1} = ' num2str(M.true(1)) ' ± ' num2str(M.div(1)) ' J/m'], ...
-    [LorM '_{2} = ' num2str(M.true(2)) ' ± ' num2str(M.div(2)) ' J/m'], ...
+
+% legend([LorM '_{1} = ' num2str(M.true(1)) ' ± ' num2str(M.div(1)) ' J/m'], ...
+    % [LorM '_{2} = ' num2str(M.true(2)) ' ± ' num2str(M.div(2)) ' J/m'], ...
+    legend(['M = ' num2str(M.Total_true) ' ± ' num2str(M.Total_div) ' J/m'], ... %N/m
     ['J_{1} = ' num2str(J.vectorial_true(1)) ' ± ' num2str(J.vectorial_div(1)) ' J/m^2'], ...
     ['J_{2} = ' num2str(J.vectorial_true(2)) ' ± ' num2str(J.vectorial_div(2)) ' J/m^2'], ...%N
     'location', 'northoutside', 'box', 'off');
@@ -1320,7 +1325,7 @@ ax1.XLim = [0 max(Domain) + stepsize];
 if strcmpi(input_unit, 'um')
     input_unit = '\mum';
 end
-ax1.XLabel.String = ['Domain size [' input_unit ']'];
+ax1.XLabel.String = ['Domain length [' input_unit ']'];
 ax2.XLabel.String = 'Domain number';
 end
 
@@ -1379,7 +1384,7 @@ ax1.XLim = [0 max(Domain) + stepsize];
 if strcmpi(input_unit, 'um')
     input_unit = '\mum';
 end
-ax1.XLabel.String = ['Domain size [' input_unit ']'];
+ax1.XLabel.String = ['Domain length [' input_unit ']'];
 ax2.XLabel.String = 'Domain number';
 end
 
@@ -1779,7 +1784,7 @@ ax2.XLim = [0 length(Domain)+1];     ax1.XLim = [0 max(Domain)+stepsize];
 if strcmpi(input_unit,'um')
     input_unit = '\mum';
 end
-ax1.XLabel.String = ['Domain size [' input_unit ']'];
+ax1.XLabel.String = ['Domain length [' input_unit ']'];
 ax2.XLabel.String = 'Domain number';
 end
 
