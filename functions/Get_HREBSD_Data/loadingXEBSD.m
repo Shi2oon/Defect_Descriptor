@@ -21,9 +21,9 @@ if exist('iPut','var') || exist('C_voight','var')
         Va.GND     = GND.total;   % from xEBSD  
     end
     % rotation
-        Va.W11 = Maps.W11_F1;   Va.W12 = Maps.W12_F1;	Va.W13 = Maps.W13_F1;           
-        Va.W21 = Maps.W21_F1;   Va.W22 = Maps.W22_F1;	Va.W23 = Maps.W23_F1;    
-        Va.W31 = Maps.W31_F1;  	Va.W32 = Maps.W32_F1;   Va.W33 = Maps.W33_F1;  
+        Va.W11 = zeros(size(Maps.W11_F1));   Va.W12 = Maps.W12_2;	Va.W13 = Maps.W13_F1;           
+        Va.W21 = Maps.W21_F1;   Va.W22 = zeros(size(Maps.W11_F1));	Va.W23 = Maps.W23_F1;    
+        Va.W31 = Maps.W31_F1;  	Va.W32 = Maps.W32_F1;   Va.W33 = zeros(size(Maps.W11_F1));  
         Va.PH = Maps.PH_2;      Va.MAE = Maps.MAE_2;
 
     if  ~exist('C_voight','var')  % old version of xEBSD
@@ -41,11 +41,13 @@ if exist('iPut','var') || exist('C_voight','var')
         Va.A31 = Va.E31+Va.W31; Va.A32 = Va.E32+Va.W32; Va.A33 = Va.E33+Va.W33;
         %
         Va.Stiffness  = iPut.stiffnessvalues;
-        Va.X   = Data.X;        Va.Y   = Data.Y;  
+        Va.X   = Data.X;        Va.Y   = Data.Y;
+        Va.RefID = Maps.RefID;
         Va.Version = 'xEBSD_V2';
     
     elseif exist('C_voight','var') % NEW xEBSD version
         load(DirxEBSD,'Map_stress_sample','Map_strain_sample','Map_A0_sample');
+       Va.RefID = Map_RefID;
         % displacement gradient tensor
 Va.A11 = Map_A0_sample(:,:,1,1);        Va.A12 = Map_A0_sample(:,:,1,2);        Va.A13 = Map_A0_sample(:,:,1,3);
 Va.A21 = Map_A0_sample(:,:,2,1);        Va.A22 = Map_A0_sample(:,:,2,2);        Va.A23 = Map_A0_sample(:,:,2,3);
@@ -64,6 +66,7 @@ Va.E31 = Map_strain_sample(:,:,3,1);    Va.E32 = Map_strain_sample(:,:,3,2);    
         Va.X   = Data.XSample;          Va.Y   = Data.YSample;
         if Va.Y(1,1)-Va.Y(1,2)~=0 || Va.X(1,1)-Va.X(2,1)~=0
            [Va.X,Va.Y] = meshgrid(unique(Va.X),unique(Va.Y));
+           
         end
         Va.Version = 'xEBSD_V3';
     end   
@@ -95,7 +98,6 @@ Va.nu  =  Va.Stiffness(1,2)/(Va.Stiffness(1,1)+ Va.Stiffness(1,2));
 Va.E   =  Va.Stiffness(1,1)*(1-2*Va.nu)*(1+Va.nu)/(1-Va.nu);
 Va.units.xy = 'um';       Va.units.S  = 'GPa';      Va.units.W = 'rad';
 Va.units.E  = 'Abs.';     Va.units.St = 'GPa';
-Va.RefID = Map_RefID;
 Va.GrainData = GrainData;
 end
 
