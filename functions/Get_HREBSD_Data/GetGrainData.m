@@ -121,12 +121,42 @@ if answer == 'C' || answer == 'c'
 elseif answer == 'R' || answer == 'r'
     [Maps] = Rot2Crop(Maps,SavingD,Answers);
     SavingD = [SavingD '\Crop & Rot Data.mat'];
+    save(SavingD,'Maps'); 
 else
     SavingD = [SavingD '\Full Data.mat'];
 end
 plotStressandRot(Maps)
 saveas(gcf,[erase(SavingD,'.mat') '.tif']);  
 saveas(gcf,[erase(SavingD,'.mat') '.fig']); close 
+
+%% save 
+Maps.type       = 'A';
+Maps.stressstat = 'plane_stress';
+Maps.Operation  = 'xED';
+alldata = [Maps.X(:)        Maps.Y(:)       zeros(size(Maps.X(:))) ...
+           Maps.A11(:)-1    Maps.A12(:)     Maps.A13(:)  ...
+           Maps.A21(:)      Maps.A22(:)-1   Maps.A23(:)  ...
+           Maps.A31(:)      Maps.A32(:)     Maps.A33(:)-1];
+if strcmpi(Named, '3D')
+        xLin        = Maps.X(1,:);
+        [~, index1] = min(abs(xLin-Maps.xo(1)));
+        [~, index2] = min(abs(xLin-Maps.xo(2)));
+        yLin        = Maps.Y(:,1);
+        [~, index3] = min(abs(yLin-Maps.yo(1)));
+        Maps.E11(index3,min([index1,index2]):max([index1,index2]))=NaN;
+        Maps.E11(Maps.E11==0)=NaN;
+        Zo=input('\nWhat is the effective depth of information [nm]?   ');
+    alldata = [ Maps.X(:)       Maps.Y(:)           ones(size(Maps.Y(:)))*Zo*1e-3...
+                Maps.E11(:)     Maps.E22(:)         Maps.E33(:)...
+                Maps.E12(:)     Maps.E13(:)         Maps.E23(:)];
+alldata(isnan(alldata(:,4)),:)=[];
+elseif strcmpi(Named, '2D')
+    alldata = [Maps.X(:)	Maps.Y(:)	Maps.E11(:)	Maps.E22(:)	Maps.E12(:)];
+end
+
+save(SavingD,'Maps','alldata'); % save
+Maps.SavingD = fileparts(Maps.SavingD);
+%%
 %{
 if length(unique(Maps.RefID))>3;   answer = 1;
 	while sum(answer) ~= 0
@@ -183,32 +213,4 @@ end
 % plotStressandRot(Maps.Crystal)
 % saveas(gcf,[erase(SavingD,'.mat') '_Cry.tif']);  
 % saveas(gcf,[erase(SavingD,'.mat') '_Cry.fig']); close
-
-%% save an exit
-Maps.type       = 'A';
-Maps.stressstat = 'plane_stress';
-Maps.Operation  = 'xED';
-alldata = [Maps.X(:)        Maps.Y(:)       zeros(size(Maps.X(:))) ...
-           Maps.A11(:)-1    Maps.A12(:)     Maps.A13(:)  ...
-           Maps.A21(:)      Maps.A22(:)-1   Maps.A23(:)  ...
-           Maps.A31(:)      Maps.A32(:)     Maps.A33(:)-1];
-if strcmpi(Named, '3D')
-        xLin        = Maps.X(1,:);
-        [~, index1] = min(abs(xLin-Maps.xo(1)));
-        [~, index2] = min(abs(xLin-Maps.xo(2)));
-        yLin        = Maps.Y(:,1);
-        [~, index3] = min(abs(yLin-Maps.yo(1)));
-        Maps.E11(index3,min([index1,index2]):max([index1,index2]))=NaN;
-        Maps.E11(Maps.E11==0)=NaN;
-        Zo=input('\nWhat is the effective depth of information [nm]?   ');
-    alldata = [ Maps.X(:)       Maps.Y(:)           ones(size(Maps.Y(:)))*Zo*1e-3...
-                Maps.E11(:)     Maps.E22(:)         Maps.E33(:)...
-                Maps.E12(:)     Maps.E13(:)         Maps.E23(:)];
-alldata(isnan(alldata(:,4)),:)=[];
-elseif strcmpi(Named, '2D')
-    alldata = [Maps.X(:)	Maps.Y(:)	Maps.E11(:)	Maps.E22(:)	Maps.E12(:)];
-end
-
-save(SavingD,'Maps','alldata'); % save
-Maps.SavingD = fileparts(Maps.SavingD);
 end
