@@ -155,7 +155,7 @@ elseif strcmpi(Named, '2D')
 end
 
 save(SavingD,'Maps','alldata'); % save
-Maps.SavingD = fileparts(Maps.SavingD);
+Maps.SavingD = fileparts(SavingD);
 %%
 %{
 if length(unique(Maps.RefID))>3;   answer = 1;
@@ -191,7 +191,6 @@ title('E_{12} :: Select the Crack mask, start from crack tip');
 [Maps.xm,Maps.ym] = ginput(2); close
 %}
 %% Get stiffness tensor
-Maps.SavingD = SavingD;
 if strcmpi(Answers, 'w')
     Maps.results = fname;
 	% stiffness:  crystal orientation is defined as the rotation that transforms crystal
