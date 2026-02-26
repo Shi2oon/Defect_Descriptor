@@ -2,6 +2,8 @@ This code decompose the Stress intesity factors from strain maps directly withou
 Start with generating strain data using the calibration code and then use the output for the main function
 The code is self contained and does not need extra functions
 
+See: https://doi.org/10.1007/s00366-025-02262-5 for more details
+
 M_J_KIII_2D: Calucate the M integral in horizontal and vertical direction. Under development is the L-integral
 
 There are couple of input desks depending on what you want:
