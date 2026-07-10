@@ -381,19 +381,6 @@ If there is no stable region, the result is not trustworthy. Do not rescue it by
 
 ---
 
-## Figure gallery
-
-| Figure | What it shows |
-|---|---|
-| <img src="Data/366_2025_2262_Fig1_HTML.webp" width="260" alt="DIC setup and EDI"> | DIC experiment and equivalent domain integration around a crack tip |
-| <img src="Data/366_2025_2262_Fig2_HTML.png" width="260" alt="Workflow"> | Toolbox workflow from user input to plotting and saved outputs |
-| <img src="Data/366_2025_2262_Fig3_HTML.webp" width="260" alt="Synthetic validation"> | Synthetic mixed-mode validation and VCE sensitivity |
-| <img src="Data/366_2025_2262_Fig4_HTML.webp" width="260" alt="HR-EBSD crack"> | HR-EBSD microcrack analysis in 6H-SiC |
-| <img src="Data/366_2025_2262_Fig5_HTML.webp" width="260" alt="Dislocation example"> | HR-TKD dislocation field and M-integral convergence |
-| <img src="Data/366_2025_2262_Fig6_HTML.webp" width="260" alt="DVC fatigue crack"> | DVC fatigue crack analysis and direction sweep |
-
----
-
 ## Recommended workflow for a new dataset
 
 ```text
