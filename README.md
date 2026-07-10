@@ -1,29 +1,42 @@
 # Defect Descriptor
 
 <p align="center">
-  <strong>Configurational-force and mixed-mode fracture descriptors directly from full-field experimental maps.</strong>
+  <strong>Configurational-force and mixed-mode defect descriptors directly from experimental field maps.</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/Shi2oon/Defect_Descriptor/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
-  <img alt="MATLAB" src="https://img.shields.io/badge/MATLAB-100%25-orange.svg">
+  <img alt="MATLAB" src="https://img.shields.io/badge/MATLAB-toolbox-orange.svg">
   <a href="https://doi.org/10.1007/s00366-025-02262-5"><img alt="Paper DOI" src="https://img.shields.io/badge/DOI-10.1007%2Fs00366--025--02262--5-blue.svg"></a>
+  <img alt="Inputs" src="https://img.shields.io/badge/inputs-DIC%20%7C%20DVC%20%7C%20HR--EBSD%20%7C%20HR--TKD-lightgrey.svg">
 </p>
 
-**Defect Descriptor** is a MATLAB toolbox for extracting fracture and defect-field descriptors from measured or synthetic full-field maps. It calculates configurational-force quantities and mixed-mode stress intensity factors from local strain, displacement-gradient, deformation-gradient, or DIC displacement data.
+**Defect Descriptor** is a MATLAB toolbox for extracting local mechanical descriptors from measured or synthetic displacement, displacement-gradient, deformation-gradient, and strain maps. It calculates configurational-force quantities and mixed-mode stress intensity factors directly from field data, without requiring a standard specimen geometry, a known applied load, or a predefined finite-element boundary-value problem.
 
-The code is designed for cases where the defect geometry, boundary conditions, or applied load are not easily reduced to a standard fracture-mechanics specimen. Instead of starting from a predefined finite-element model, the workflow starts from measured fields around the defect.
+The toolbox is intended for cracks, dislocations, microcracks, fatigue cracks, and other localised defect fields where the useful information is already present in the measured map.
 
-## What the toolbox calculates
+<p align="center">
+  <img src="Data/366_2025_2262_Fig2_HTML.png" width="850" alt="Defect Descriptor computational workflow">
+</p>
 
-| Quantity | Meaning | Typical use |
+<p align="center">
+  <em>Computational workflow for field import, preprocessing, integral calculation, mode decomposition, and output generation.</em>
+</p>
+
+---
+
+## What the toolbox gives you
+
+| Output | Meaning | Typical use |
 |---|---|---|
-| `$J$` | Energy-release/configurational-force measure | Crack-driving force and contour convergence checks |
-| `$M$` | Configurational-force descriptor | Directional defect severity and horizontal/vertical force components |
-| `$K_I$` | Mode-I opening stress intensity factor | Tensile crack opening |
-| `$K_{II}$` | Mode-II sliding stress intensity factor | In-plane shear |
-| `$K_{III}$` | Mode-III tearing stress intensity factor | Anti-plane shear, when the input field supports it |
-| Direction sweep | `$J$`, `$M$`, `$K_I$`, `$K_{II}$`, `$K_{III}$` over trial crack directions | Finding the energetically preferred crack or defect direction |
+| J | Energy-release/configurational-force integral | Crack-driving force and contour convergence checks |
+| M | Configurational-force descriptor | Directional defect force and defect-severity analysis |
+| K<sub>I</sub> | Mode-I stress intensity factor | Opening or closing at the crack/defect field |
+| K<sub>II</sub> | Mode-II stress intensity factor | In-plane shear contribution |
+| K<sub>III</sub> | Mode-III stress intensity factor | Out-of-plane or anti-plane shear contribution, where supported by the input field |
+| J<sub>1</sub>, J<sub>2</sub> | Vectorial components of the J-integral | Directional crack-driving force |
+| M<sub>1</sub>, M<sub>2</sub> | Vectorial components of the M-integral | Directional configurational-force descriptor |
+| Direction sweep | J, M, K<sub>I</sub>, K<sub>II</sub>, and K<sub>III</sub> over trial directions | Finding the maximum-energy virtual crack extension direction |
 
 The main solver is:
 
@@ -31,52 +44,78 @@ The main solver is:
 [K, KI, KII, KIII, J, M, Maps] = M_J_KIII_2D(Data, Prop);
 ```
 
-## Why use it?
+The returned structures contain the converged values, contour/domain-wise raw values, standard deviations, and plotting data used to judge convergence.
 
-Classical fracture analysis normally needs a clean geometry, known loading, and carefully defined contours. Experimental maps from DIC, stereo-DIC, HR-EBSD, or non-standard micro-mechanical tests are rarely that tidy.
+---
 
-This toolbox is useful when you want to:
+## Why this matters
 
-- extract `$J$`, `$M$`, `$K_I$`, `$K_{II}$`, and `$K_{III}$` directly from local field data;
-- analyse non-standard cracks, tortuous cracks, and microstructural defects;
-- work with DIC, stereo-DIC, deformation-gradient, displacement-gradient, or HR-EBSD-derived fields;
-- perform a direction sweep to identify the maximum-energy defect direction;
-- validate the formulation using synthetic calibration fields with known input `$K_I$`, `$K_{II}$`, and `$K_{III}$`.
+Conventional fracture-mechanics calculations are clean when the geometry, crack path, loading, and boundary conditions are known. Real experimental data are rarely that clean.
 
-## Repository layout
+Defect Descriptor starts from the measured field itself. It is useful when you want to:
+
+- calculate J, M, K<sub>I</sub>, K<sub>II</sub>, and K<sub>III</sub> from local field maps;
+- analyse non-standard cracks, curved crack fronts, microcracks, dislocations, or defect clusters;
+- work with DIC, stereo-DIC, DVC, HR-EBSD, HR-TKD, or synthetic validation fields;
+- avoid relying on idealised specimen solutions when the real boundary conditions are unknown;
+- test how the assumed virtual crack extension direction changes the extracted fracture descriptors.
+
+The method is powerful, but not magic. It extracts meaningful quantities only when the input field is physically meaningful, sufficiently resolved, correctly scaled, and centred around the defect.
+
+---
+
+## Repository structure
 
 ```text
 Defect_Descriptor/
-├── Data/                         # Example datasets
+├── Data/                         # Example datasets and README figures
+│   ├── 366_2025_2262_Fig1_HTML.webp
+│   ├── 366_2025_2262_Fig2_HTML.png
+│   ├── 366_2025_2262_Fig3_HTML.webp
+│   ├── 366_2025_2262_Fig4_HTML.webp
+│   ├── 366_2025_2262_Fig5_HTML.webp
+│   └── 366_2025_2262_Fig6_HTML.webp
 ├── functions/                    # Core MATLAB routines
 ├── input_desk_Validation.m       # Synthetic-field validation examples
 ├── input_desk_DIC.m              # 2D DIC, stereo-DIC, and elastoplastic examples
 ├── input_desk_xEBSD.m            # HR-EBSD/xEBSD example workflow
-├── input_Direction_Sweep.m       # Direction sweep from -90° to 90°
+├── input_Direction_Sweep.m       # Direction sweep over trial VCE angles
 ├── LICENSE                       # MIT licence
 └── README.md
 ```
 
+---
+
 ## Quick start
 
-Clone the repository and run one of the input desks from the repository root:
+Clone the repository and run MATLAB from the repository root:
 
 ```matlab
 clc; clear; close all
-addpath(genpath([pwd '\functions']));
+addpath(genpath(fullfile(pwd, 'functions')));
 ```
 
-Then choose the workflow that matches your input data.
+Then choose the input desk that matches your data type.
 
-## Example 1: validate using synthetic fields
+| Input desk | Use it for |
+|---|---|
+| `input_desk_Validation.m` | Synthetic fields with known K<sub>I</sub>, K<sub>II</sub>, and K<sub>III</sub> |
+| `input_desk_DIC.m` | 2D DIC, stereo-DIC, displacement maps, and elastoplastic examples |
+| `input_desk_xEBSD.m` | HR-EBSD/xEBSD displacement-gradient or strain-gradient workflows |
+| `input_Direction_Sweep.m` | VCE-angle sweep from negative to positive trial directions |
 
-Use this first. It is the safest way to confirm that the code path is working before using experimental data.
+---
+
+## Example 1: validate the code with a synthetic mixed-mode field
+
+Start here before using experimental data. The validation desk generates a known mixed-mode field and checks whether the toolbox recovers the prescribed values.
 
 ```matlab
 clc; clear; close all
-addpath([pwd '\functions'])
+addpath(genpath(fullfile(pwd, 'functions')));
 
-% Generate a synthetic field with known mixed-mode input
+% Generate synthetic field with known mixed-mode input:
+% KI = 3, KII = 1, KIII = 2
 [~, ~, alldata, Prop] = Calibration_2DKIII(3, 1, 2);
 
 % U means displacement-gradient input
@@ -85,22 +124,32 @@ Prop.Operation = 'U';
 [K, KI, KII, KIII, J, M, Maps] = M_J_KIII_2D(alldata, Prop);
 ```
 
-You can also validate the deformation-gradient and DIC-displacement input formats through `input_desk_Validation.m`.
+<p align="center">
+  <img src="Data/366_2025_2262_Fig3_HTML.webp" width="780" alt="Synthetic mixed-mode validation field and convergence plots">
+</p>
 
-## Example 2: DIC or stereo-DIC data
+<p align="center">
+  <em>Synthetic mixed-mode validation: displacement fields, convergence of K<sub>I</sub>, K<sub>II</sub>, K<sub>III</sub>, and sensitivity to virtual crack extension direction.</em>
+</p>
 
-Use `input_desk_DIC.m` for measured displacement fields.
+Use this workflow to test installation, paths, units, and the expected data layout before introducing experimental noise.
+
+---
+
+## Example 2: DIC or stereo-DIC displacement fields
+
+Use `input_desk_DIC.m` for measured displacement maps.
 
 ```matlab
 clc; clear; close all
-addpath(genpath([pwd '\functions']));
+addpath(genpath(fullfile(pwd, 'functions')));
 
-Prop.E = 210e9;                  % Young's modulus [Pa]
-Prop.nu = 0.30;                  % Poisson's ratio [-]
-Prop.units.St = 'Pa';            % Stress unit
-Prop.units.xy = 'mm';            % Coordinate unit: 'm', 'mm', 'um', or 'nm'
-Prop.stressstat = 'plane_stress';% 'plane_stress' or 'plane_strain'
-Prop.Operation = 'DIC';          % Raw DIC displacement data
+Prop.E = 210e9;                   % Young's modulus [Pa]
+Prop.nu = 0.30;                   % Poisson's ratio [-]
+Prop.units.St = 'Pa';             % Stress unit
+Prop.units.xy = 'mm';             % Coordinate unit: 'm', 'mm', 'um', or 'nm'
+Prop.stressstat = 'plane_stress'; % 'plane_stress' or 'plane_strain'
+Prop.Operation = 'DIC';           % Raw DIC or stereo-DIC displacement data
 
 DataDirect = fullfile(pwd, 'Data', '1KI-2KII-3KII_Data.dat');
 Data = importdata(DataDirect);
@@ -108,9 +157,7 @@ Data = importdata(DataDirect);
 [K, KI, KII, KIII, J, M, Maps] = M_J_KIII_2D(Data.data, Prop);
 ```
 
-### Elastoplastic example
-
-For Ramberg-Osgood type behaviour, define the additional material parameters before calling the solver:
+For elastoplastic behaviour, define the additional Ramberg-Osgood-type parameters before calling the solver:
 
 ```matlab
 Prop.E = 210e9;
@@ -124,27 +171,59 @@ Prop.stressstat = 'plane_stress';
 Prop.Operation = 'DIC';
 ```
 
-Check the units carefully. Most bad results from this workflow come from mixing metres, millimetres, micrometres, nanometres, Pa, and MPa.
+<p align="center">
+  <img src="Data/366_2025_2262_Fig1_HTML.webp" width="820" alt="Experimental DIC setup and EDI concept">
+</p>
 
-## Example 3: HR-EBSD / xEBSD data
+<p align="center">
+  <em>DIC measurement and equivalent domain integration concept around a crack tip.</em>
+</p>
 
-Use `input_desk_xEBSD.m` when the strain or displacement-gradient field has been prepared through an xEBSD-style workflow.
+---
+
+## Example 3: HR-EBSD or xEBSD maps
+
+Use `input_desk_xEBSD.m` when the field has been prepared through an xEBSD-style workflow.
 
 ```matlab
 clc; clear; close all
-addpath(genpath([pwd '\functions']))
+addpath(genpath(fullfile(pwd, 'functions')));
 
-filename = [pwd '\Data\Crack_in_Si_XEBSD'];
+filename = fullfile(pwd, 'Data', 'Crack_in_Si_XEBSD');
 
 [Maps, alldata] = GetGrainData(filename);
 M_J_KIII_2D(alldata, Maps);
 ```
 
-For CrossCourt or other HR-EBSD pipelines, prepare the data into the same structure expected by the other input desks. The example is useful, but it should not be treated as a universal HR-EBSD importer.
+For CrossCourt or other HR-EBSD pipelines, prepare the data into the same column structure expected by the solver. The example is a useful template, not a universal importer for every HR-EBSD output format.
 
-## Example 4: direction sweep
+<p align="center">
+  <img src="Data/366_2025_2262_Fig4_HTML.webp" width="820" alt="HR-EBSD indentation crack example">
+</p>
 
-`input_Direction_Sweep.m` rotates the local field from `-90°` to `90°` and recalculates the descriptors at each angle.
+<p align="center">
+  <em>Example HR-EBSD application to an indentation-induced microcrack, including stress maps and convergence of J and SIFs.</em>
+</p>
+
+---
+
+## Example 4: dislocation and M-integral analysis
+
+For dislocations or other defect fields where the goal is not only crack-tip fracture but configurational-force characterisation, the toolbox can be used to evaluate M<sub>1</sub> and M<sub>2</sub> from measured or simulated displacement-gradient fields.
+
+<p align="center">
+  <img src="Data/366_2025_2262_Fig5_HTML.webp" width="820" alt="HR-TKD dislocation example and M-integral convergence">
+</p>
+
+<p align="center">
+  <em>Application to experimental and simulated dislocation fields in anisotropic tungsten, showing M-integral convergence.</em>
+</p>
+
+---
+
+## Example 5: direction sweep
+
+`input_Direction_Sweep.m` rotates the local tensor field over a range of trial angles and recalculates the descriptors at each angle.
 
 ```matlab
 crack_angles = -90:1:90;
@@ -156,181 +235,245 @@ for i = 1:length(crack_angles)
          sind(theta)  cosd(theta) 0;
          0            0           1];
 
-    % Rotate the tensor field, then solve
+    % Rotate the local tensor field before solving
+    % RotatedAlldata = ...
+
     [K, KI, KII, KIII, J, M] = M_J_KIII_2D(RotatedAlldata, Prop);
 end
 ```
 
-The output table can include:
+Typical sweep outputs include:
+
+| Column | Meaning |
+|---|---|
+| `Theta_deg` | Trial virtual crack extension angle |
+| `J_J_per_m2` | Scalar J value |
+| `KI_MPa_sqrt_m` | Mode-I stress intensity factor |
+| `KII_MPa_sqrt_m` | Mode-II stress intensity factor |
+| `KIII_MPa_sqrt_m` | Mode-III stress intensity factor |
+| `J1_J_per_m2`, `J2_J_per_m2` | Vectorial J components |
+| `M1_J_per_m`, `M2_J_per_m` | Vectorial M components |
+
+Use this workflow when the crack or defect direction is uncertain, when the local field suggests kinking, or when the maximum-energy direction is part of the scientific question.
+
+---
+
+## Example 6: 3D displacement fields and curved crack fronts
+
+The toolbox can also be used with 3D displacement fields, for example fields obtained from digital volume correlation of X-ray computed tomography data. This is useful for fatigue cracks with complicated crack-front geometry.
+
+<p align="center">
+  <img src="Data/366_2025_2262_Fig6_HTML.webp" width="850" alt="3D crack example from DVC and direction sweep">
+</p>
+
+<p align="center">
+  <em>DVC-based fatigue-crack example showing 3D displacement data, contour convergence, and virtual crack extension angle sweep.</em>
+</p>
+
+---
+
+## Input formats
+
+The solver accepts several forms of local field data. The most common layouts are listed below.
+
+### DIC displacement data
+
+For 2D DIC:
 
 ```text
-Theta (deg)
-J (J/m2)
-KI (MPa m^-0.5)
-KII (MPa m^-0.5)
-KIII (MPa m^-0.5)
-J1 (J/m2)
-J2 (J/m2)
-M1 (J/m)
-M2 (J/m)
+X   Y   Ux   Uy
 ```
 
-Use this workflow when the crack direction is uncertain, when the defect is not a straight crack, or when the most energetically favourable direction is part of the analysis.
+For stereo-DIC or 3D surface displacement:
 
-## Input requirements
+```text
+X   Y   Z   Ux   Uy   Uz
+```
 
-This part is not optional. The method is sensitive to field formatting.
+### Displacement-gradient or deformation-gradient data
 
-### Grid requirements
+For gradient-based input, arrange the data as:
 
-Your data should be:
+```text
+X   Y   Z   G11   G12   G13   G21   G22   G23   G31   G32   G33
+```
 
-- square: the number of data points in `$x$` should equal the number of data points in `$y$`;
-- uniformly spaced: the spacing in `$x$` and `$y$` should be equal;
-- centred: the crack or defect should be placed at the centre of the map;
-- consistently scaled: coordinates, stresses, strains, and material constants must use compatible units.
+where `Gij` is either the displacement-gradient component or the deformation-gradient component depending on `Prop.Operation`.
 
-If the map is not square, not uniform, or badly centred, do not expect physically meaningful `$J$`, `$M$`, or `$K$` values.
+### Operation modes
 
-### Accepted operation modes
-
-| `Prop.Operation` | Input type | Description |
+| `Prop.Operation` | Input meaning | Typical source |
 |---|---|---|
-| `'DIC'` | Displacement map | Raw 2D or stereo-DIC displacement field |
-| `'U'` | Displacement-gradient map | Gradient-based input, useful for validation or HR-EBSD-type data |
-| `'F'` | Deformation-gradient map | Deformation-gradient input |
+| `'DIC'` | Displacement field | 2D DIC, stereo-DIC, DVC slices, synthetic displacement maps |
+| `'U'` | Displacement-gradient field | Synthetic validation, HR-EBSD-style prepared data |
+| `'F'` | Deformation-gradient field | Deformation-gradient maps |
 
-### Strain-map vector format
+---
 
-One accepted format is a vectorised map with coordinates followed by tensor components:
+## Required assumptions and data checks
 
-```matlab
-Maps = [X(:)  Y(:)  Z(:)  ...
-        E11(:) E12(:) E13(:) ...
-        E21(:) E22(:) E23(:) ...
-        E31(:) E32(:) E33(:)];
-```
+This section is deliberately strict. Most wrong results come from violating one of these points.
 
-For a strictly 2D strain map, set the unavailable out-of-plane components to zero. Do not leave missing components as undefined values.
+### Geometry and grid
 
-## Material properties
+Your map should be:
 
-For isotropic elasticity:
+- **square**, with the same number of points in X and Y;
+- **uniformly spaced**, with equal spacing in X and Y;
+- **centred**, with the crack tip, dislocation core, or defect centre at the centre of the analysis window;
+- **large enough**, so that the expanding integration domain can reach a converged region;
+- **cleaned**, with crack faces, holes, grain-boundary artefacts, or missing measurements handled consistently.
 
-```matlab
-Prop.E  = 210e9;          % Young's modulus [Pa]
-Prop.nu = 0.30;           % Poisson's ratio [-]
-Prop.stressstat = 'plane_stress'; % or 'plane_strain'
-```
+### Units
 
-For anisotropic elasticity, use a stiffness matrix instead of `E` and `nu` when the relevant code path requires it:
+Use compatible units throughout the analysis.
 
-```matlab
-Prop.Stiffness = C;       % stiffness matrix, in Pa
-```
+| Quantity | Recommended unit |
+|---|---|
+| Stress | Pa |
+| Elastic modulus | Pa |
+| Coordinates | Declare explicitly through `Prop.units.xy` |
+| Displacements | Consistent with coordinate units |
+| J | J/m² |
+| M | J/m |
+| K | MPa√m in reported plots/tables, depending on conversion inside the workflow |
 
-For elastoplastic examples:
+Do not mix metres, millimetres, micrometres, nanometres, Pa, and MPa casually. That is the fastest way to get a beautiful but meaningless plot.
 
-```matlab
-Prop.yield = 4e9;
-Prop.Yield_offset = 1.24;
-Prop.Exponent = 26.67;
-```
+### Material behaviour
 
-Be explicit about the stress state. A plane-stress result and a plane-strain result are not interchangeable.
+The current workflows support:
 
-## Outputs
+- isotropic elastic material properties through `Prop.E` and `Prop.nu`;
+- anisotropic stiffness input where prepared in the relevant workflow;
+- elastoplastic behaviour through Ramberg-Osgood-type parameters in the DIC workflow.
 
-The solver returns descriptor structures rather than a single scalar:
+The implementation is most appropriate for small-strain mechanics. Do not treat it as a finite-deformation hyperelastic toolbox without extending the formulation.
 
-```matlab
-[K, KI, KII, KIII, J, M, Maps] = M_J_KIII_2D(Data, Prop);
-```
+---
 
-Typical fields include:
+## How to interpret convergence
 
-```matlab
-J.true        % representative J value
-J.div         % scatter/convergence measure
-J.Raw         % raw contour values
-J.direction_true
-J.maxJ_true
+The code expands the integration domain away from the defect and reports descriptor values as a function of contour or domain size. A useful result normally shows a stable region after the highly localised near-tip field has been excluded and before the domain reaches unrelated boundaries or neighbouring defects.
 
-KI.true       % representative K_I
-KII.true      % representative K_II
-KIII.true     % representative K_III
+A sensible workflow is:
 
-M.true        % M-integral components
-M.div         % M-integral scatter/convergence measure
-```
+1. Run the solver.
+2. Inspect the raw contour/domain sequence.
+3. Exclude the first contours if they are dominated by singularity, noise, or missing data.
+4. Exclude later contours if they interact with boundaries, grain boundaries, other cracks, or surrounding defects.
+5. Report the mean and standard deviation over the stable region only.
 
-Exact structure fields can vary between workflows. Inspect `J`, `M`, `KI`, `KII`, and `KIII` after running the example closest to your data.
+If there is no stable region, the result is not trustworthy. Do not rescue it by averaging everything.
 
-## Recommended workflow
-
-```mermaid
-flowchart LR
-    A[Full-field data] --> B{Input type}
-    B -->|DIC or stereo-DIC| C[input_desk_DIC.m]
-    B -->|Synthetic validation| D[input_desk_Validation.m]
-    B -->|HR-EBSD or xEBSD| E[input_desk_xEBSD.m]
-    B -->|Unknown defect direction| F[input_Direction_Sweep.m]
-
-    C --> G[Check units, grid spacing, centring]
-    D --> G
-    E --> G
-    F --> G
-
-    G --> H[M_J_KIII_2D]
-    H --> I[$J$, $M$, $K_I$, $K_{II}$, $K_{III}$]
-    I --> J[Contour convergence and direction analysis]
-```
+---
 
 ## Common problems
 
-| Problem | Likely cause | Fix |
+| Problem | Likely cause | What to check |
 |---|---|---|
-| Results are unstable across contours | Crack not centred, noisy data, poor contour region | Re-centre the map, crop the field, smooth only where justified, check contour convergence |
-| `$K_I$`, `$K_{II}$`, or `$K_{III}$` has the wrong order of magnitude | Unit mismatch | Check `Prop.units.xy`, `Prop.units.St`, `Prop.E`, and data units |
-| Solver fails or gives meaningless values | Non-square or non-uniform grid | Resample to a square, uniformly spaced map |
-| HR-EBSD example does not run | Missing xEBSD helper function | Add the required `GetGrainData` function or prepare the data manually |
-| Direction sweep is slow | One-degree sweep over a large field | Start with `-90:5:90`, then refine around the peak direction |
+| J or K values are orders of magnitude wrong | Unit mismatch | `Prop.units.xy`, stress units, modulus units, displacement units |
+| No stable convergence region | Field of view too small or neighbouring defects included | Crop differently or increase the measured region |
+| Strong oscillation in K<sub>II</sub> or K<sub>III</sub> | Noisy gradient field or incorrect VCE direction | Smooth cautiously, verify coordinate frame, run a direction sweep |
+| Negative K<sub>I</sub> | Crack field is locally closing rather than opening | Check load state, residual stress, unloading condition, and sign convention |
+| xEBSD example does not run | `GetGrainData` not on path or data not prepared in expected format | Add the required xEBSD helper functions and check the data structure |
+| Pretty figure but physically absurd values | Input field is not mechanically consistent | Check centring, rigid-body motion, filtering, cracks/faces, and boundary artefacts |
 
-## Good practice before publication
+---
 
-Before reporting values from experimental data:
+## Figure gallery
 
-1. Run `input_desk_Validation.m` and confirm that the synthetic recovery behaves as expected.
-2. Plot the input field and verify the crack or defect centre.
-3. Check unit consistency line by line.
-4. Report the stress state: plane stress, plane strain, or anisotropic stiffness treatment.
-5. Report contour convergence, not only the final scalar value.
-6. For direction sweeps, report the angular step and the criterion used to select the preferred direction.
+| Figure | What it shows |
+|---|---|
+| <img src="Data/366_2025_2262_Fig1_HTML.webp" width="260" alt="DIC setup and EDI"> | DIC experiment and equivalent domain integration around a crack tip |
+| <img src="Data/366_2025_2262_Fig2_HTML.png" width="260" alt="Workflow"> | Toolbox workflow from user input to plotting and saved outputs |
+| <img src="Data/366_2025_2262_Fig3_HTML.webp" width="260" alt="Synthetic validation"> | Synthetic mixed-mode validation and VCE sensitivity |
+| <img src="Data/366_2025_2262_Fig4_HTML.webp" width="260" alt="HR-EBSD crack"> | HR-EBSD microcrack analysis in 6H-SiC |
+| <img src="Data/366_2025_2262_Fig5_HTML.webp" width="260" alt="Dislocation example"> | HR-TKD dislocation field and M-integral convergence |
+| <img src="Data/366_2025_2262_Fig6_HTML.webp" width="260" alt="DVC fatigue crack"> | DVC fatigue crack analysis and direction sweep |
+
+---
+
+## Recommended workflow for a new dataset
+
+```text
+1. Prepare the field map
+   - remove obvious artefacts
+   - correct rigid-body motion where needed
+   - mask crack faces or missing data consistently
+
+2. Regularise the map
+   - square analysis window
+   - equal X and Y spacing
+   - defect centred in the field of view
+
+3. Choose input mode
+   - DIC for displacement maps
+   - U for displacement-gradient maps
+   - F for deformation-gradient maps
+
+4. Define material and units
+   - E, nu, or stiffness matrix
+   - plane stress or plane strain
+   - coordinate and stress units
+
+5. Run M_J_KIII_2D
+
+6. Inspect convergence
+   - choose the stable contour/domain region
+   - report mean and standard deviation
+
+7. Optional direction sweep
+   - rotate the VCE direction
+   - identify maximum J or physically preferred propagation direction
+```
+
+---
 
 ## Citation
 
-If you use this code, cite the associated paper:
+If you use this toolbox, please cite:
 
 ```bibtex
 @article{Koko2026DefectDescriptor,
   title   = {Bridging experiments and defects' mechanics: a data-driven toolbox for configurational force analysis},
-  author  = {Koko, A. and co-authors},
+  author  = {Koko, Abdalrhaman and Abdelnour, Alya and Becker, Thorsten H. and Marrow, T. James},
   journal = {Engineering with Computers},
+  volume  = {42},
+  pages   = {21},
   year    = {2026},
   doi     = {10.1007/s00366-025-02262-5}
 }
 ```
 
-Please check the final author list and bibliographic details from the publisher page before submitting a paper.
+Paper: <https://doi.org/10.1007/s00366-025-02262-5>
 
-## Related project
+---
 
-For DIC-to-Abaqus workflows, see:
+## Figure attribution
 
-- [DIC2ABAQUS](https://github.com/Shi2oon/DIC2ABAQUS)
+Figures in `Data/366_2025_2262_Fig*_HTML.*` are from:
 
-`DIC2ABAQUS` reconstructs DIC displacement fields inside Abaqus for fracture-mechanics analysis. `Defect Descriptor` instead focuses on extracting defect descriptors directly from full-field maps.
+> Koko, A., Abdelnour, A., Becker, T. H. & Marrow, T. J. **Bridging experiments and defects' mechanics: a data-driven toolbox for configurational force analysis.** *Engineering with Computers* 42, 21 (2026). <https://doi.org/10.1007/s00366-025-02262-5>
 
-## Licence
+The article is distributed under the Creative Commons Attribution 4.0 International License. If you reuse or adapt the figures, credit the original authors, cite the article, link the licence, and indicate whether changes were made.
 
-This repository is released under the MIT Licence. See [`LICENSE`](LICENSE).
+---
+
+## License
+
+This repository is released under the MIT License. See [`LICENSE`](LICENSE).
+
+---
+
+## Contributing
+
+Contributions are welcome, especially for:
+
+- clearer input-data converters for CrossCourt, xEBSD, DVC, and other field-measurement pipelines;
+- improved plotting and output tables;
+- additional benchmark cases;
+- uncertainty propagation for noisy experimental maps;
+- finite-deformation extensions beyond the current small-strain implementation.
+
+Before opening a pull request, test the validation desk and include a short description of the dataset, units, material model, and expected output.
