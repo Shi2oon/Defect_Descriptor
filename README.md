@@ -80,6 +80,7 @@ Defect_Descriptor/
 ├── input_desk_DIC.m              # 2D DIC, stereo-DIC, and elastoplastic examples
 ├── input_desk_xEBSD.m            # HR-EBSD/xEBSD example workflow
 ├── input_Direction_Sweep.m       # Direction sweep over trial VCE angles
+├── input_Direction_Sweep_anisotropic.m       # Direction sweep over trial VCE angles for anistropic crystal
 ├── LICENSE                       # MIT licence
 └── README.md
 ```
@@ -103,7 +104,7 @@ Then choose the input desk that matches your data type.
 | `input_desk_DIC.m` | 2D DIC, stereo-DIC, displacement maps, and elastoplastic examples |
 | `input_desk_xEBSD.m` | HR-EBSD/xEBSD displacement-gradient or strain-gradient workflows |
 | `input_Direction_Sweep.m` | VCE-angle sweep from negative to positive trial directions |
-
+| `input_Direction_Sweep_anisotropic.m` | VCE-angle sweep from negative to positive trial directions for anistropic crystals|
 ---
 
 ## Example 1: validate the code with a synthetic mixed-mode field
@@ -223,7 +224,7 @@ For dislocations or other defect fields where the goal is not only crack-tip fra
 
 ## Example 5: direction sweep
 
-`input_Direction_Sweep.m` rotates the local tensor field over a range of trial angles and recalculates the descriptors at each angle.
+`input_Direction_Sweep.m` rotates the local tensor field over a range of trial angles and recalculates the descriptors at each angle. `input_Direction_Sweep_anisotropic.m` is used for anistropic crystals to also rotate the anistropic modulus. 
 
 ```matlab
 crack_angles = -90:1:90;
